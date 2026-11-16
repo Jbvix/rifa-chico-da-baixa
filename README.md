@@ -129,6 +129,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 2.8.0 | 2026-11-16 | **Publicado.** Compra de vários números por pessoa (Pix separado por número), botão "Comprar outro número", aviso de reserva pendente |
 | 2.7.0 | 2026-11-16 | **Publicado em produção.** Gaiola para smartphone (paisagem com painel lateral, aviso de girar) |
 | 2.6.0 | 2026-11-16 | **Publicado em produção** sobre o sistema de reservas existente: Comprados, Online/Visitas, Loteria oculta, sorteio oficial |
 | 2.5.0 | 2026-11-16 | Sorteio OFICIAL pelas gaiolas em 23/12/2026 10h (servidor, sincronizado), ganhador com tel. final, e-mail automático, vendas encerram 9h55, "Comprados" |

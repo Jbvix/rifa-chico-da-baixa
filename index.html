@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa) · index.html
- Autor: Jossian Brito · Versão 2.6.0 · 2026-11-16 11:10 (BRT)
+ Autor: Jossian Brito · Versão 2.8.0 · 2026-11-16 12:20 (BRT)
+ MODIFICAÇÕES v2.8.0: compra de vários números (botão "Comprar outro número",
+  aviso de Pix separado por número, lista "Seus números nesta visita")
  MODIFICAÇÕES v2.6.0 (base: versão em produção de 16/11 09:14)
   - "Reservados" → "Comprados" (só pagamento informado/verificado)
   - Online e Visitas reativados (/extras.mjs + função stats)
@@ -132,6 +134,7 @@
   <div class="modal-content">
     <h2>Número <span id="selectedNum"></span></h2>
     <p>Valor: <strong>R$ 20,00</strong></p>
+    <p style="font-size:.85rem;color:#555;margin:-6px 0 8px;">Pode comprar quantos números quiser: cada número é um Pix separado de R$ 20,00.</p>
     <input id="name" placeholder="Seu nome completo" required>
     <input id="phone" placeholder="Seu WhatsApp (com DDD)" required>
     <div id="pixArea" style="display:none;">
@@ -146,6 +149,8 @@
       
     </div>
     <p id="paidMsg" style="display:none;color:#28a745;font-weight:600;margin-top:8px;">Obrigado! Envie o comprovante no WhatsApp da Dna Lúcia para confirmar.</p>
+    <p id="meusNumeros" style="display:none;font-weight:600;margin:6px 0;"></p>
+    <button id="anotherBtn" style="display:none;">➕ Comprar outro número</button>
 <button id="confirmBtn">Confirmar e gerar Pix</button>
     <button class="secondary" id="closeModalBtn">Cancelar</button>
   </div>
