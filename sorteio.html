@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gaiola Virtual 3D</title>
+<style>
+  body { margin: 0; background: #f0f4f8; overflow: hidden; font-family: system-ui; }
+  #ui { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 12px; border-radius: 10px; }
+  #result { position: absolute; bottom: 30px; width: 100%; text-align: center; font-size: 3rem; font-weight: bold; color: #006B3F; z-index: 10; }
+  button { background: #006B3F; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; }
+  a { color: #006B3F; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <strong>Gaiola Virtual 3D</strong><br>
+  <button id="btn" onclick="start()">Sortear</button><br>
+  <a href="/">← Voltar</a>
+</div>
+<div id="result">---</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+<script>
+let scene, camera, renderer, world, spheres = [], cages = [], spinning = false;
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f4f8);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(0, 2.5, 9);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  document.body.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const light = new THREE.DirectionalLight(0xffffff, 0.6);
+  light.position.set(5, 10, 5);
+  scene.add(light);
+
+  world = new CANNON.World();
+  world.gravity.set(0, -3, 0);
+  world.broadphase = new CANNON.NaiveBroadphase();
+
+  const floor = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+  floor.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+  floor.position.y = -2;
+  world.addBody(floor);
+
+  [-3.2, 0, 3.2].forEach((x, i) => createCage(x, i));
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function createCage(x, index) {
+  const geo = new THREE.SphereGeometry(1.6, 32, 32);
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0x99ccff,
+    transparent: true,
+    opacity: 0.3,
+    shininess: 80,
+    side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 1.5, 0);
+  scene.add(mesh);
+
+  const body = new CANNON.Body({ mass: 0 });
+  body.addShape(new CANNON.Sphere(1.6));
+  body.position.set(x, 1.5, 0);
+  world.addBody(body);
+
+  const digits = index === 0 ? [0,1] : [0,1,2,3,4,5,6,7,8,9];
+  digits.forEach(d => {
+    const bGeo = new THREE.SphereGeometry(0.22, 16, 16);
+    const bMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+    const bMesh = new THREE.Mesh(bGeo, bMat);
+    bMesh.position.set(x + (Math.random()-0.5)*0.6, 1.5 + Math.random()*0.4, (Math.random()-0.5)*0.6);
+    scene.add(bMesh);
+
+    const bBody = new CANNON.Body({ mass: 0.15, shape: new CANNON.Sphere(0.22) });
+    bBody.position.copy(bMesh.position);
+    bBody.linearDamping = 0.3;
+    world.addBody(bBody);
+
+    spheres.push({ mesh: bMesh, body: bBody, digit: d });
+  });
+
+  cages.push({ mesh, body });
+}
+
+function start() {
+  if (spinning) return;
+  spinning = true;
+  document.getElementById('btn').disabled = true;
+  document.getElementById('result').textContent = 'Girando...';
+
+  spheres.forEach(s => {
+    s.body.velocity.set((Math.random()-0.5)*6, Math.random()*4+1, (Math.random()-0.5)*6);
+  });
+
+  setTimeout(() => {
+    spinning = false;
+    let num;
+    do {
+      num = Math.floor(Math.random()*2)*100 + Math.floor(Math.random()*10)*10 + Math.floor(Math.random()*10);
+    } while (num === 0);
+    document.getElementById('result').textContent = String(num).padStart(3,'0');
+    document.getElementById('btn').disabled = false;
+  }, 2800);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  world.step(1/60);
+
+  spheres.forEach(s => {
+    s.mesh.position.copy(s.body.position);
+    s.mesh.quaternion.copy(s.body.quaternion);
+  });
+
+  if (spinning) {
+    cages.forEach(c => c.mesh.rotation.y += 0.04);
+  }
+
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
