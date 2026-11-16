@@ -4,8 +4,13 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 2.2.0
- Data/Hora: 2026-11-16 11:15 (BRT, UTC-3)
+ Versão   : 2.3.0
+ Data/Hora: 2026-11-16 11:40 (BRT, UTC-3)
+
+ MODIFICAÇÕES v2.3.0 (2026-11-16) — aprovado por Charlie Bravo
+  - [CENA] Aro único (de perfil, parecia uma haste na gaiola central)
+    substituído por dois aros cruzados a ±45° em torno do eixo de giro.
+    Física inalterada.
 
  MODIFICAÇÕES v2.2.0 (2026-11-16) — CENTRALIZAÇÃO E MODO TESTE (física inalterada)
   - [LAYOUT] Cena 3D centralizada na ÁREA LIVRE entre a barra superior e o
@@ -331,10 +336,19 @@ function criarGaiola(idx) {
   giro.add(new THREE.Mesh(
     new THREE.SphereGeometry(CAGE_R + 0.04, 32, 24),
     new THREE.MeshStandardMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.07, roughness: 0.1, metalness: 0.2, depthWrite: false })));
-  // Anéis de reforço (aros) em cor da gaiola
-  const aro = new THREE.Mesh(new THREE.TorusGeometry(CAGE_R + 0.06, 0.035, 8, 64),
-    new THREE.MeshStandardMaterial({ color: CORES[idx], metalness: 0.6, roughness: 0.35 }));
-  aro.rotation.y = Math.PI / 2; giro.add(aro);
+  // Aros de reforço cruzados (v2.3.0). O toro nasce no plano xy, que CONTÉM o
+  // eixo de giro x; girando ±45° em torno de x, os dois aros continuam sendo
+  // meridianos da gaiola (giram junto sem "bambolear") e, vistos de frente,
+  // aparecem como elipses com semi-eixo vertical R·cos(45°) ≈ 0,71·R — nunca
+  // de perfil como o aro único anterior, que parecia uma haste vertical.
+  // Material compartilhado: um só ajuste de brilho acende os dois aros.
+  const matAro = new THREE.MeshStandardMaterial({ color: CORES[idx], metalness: 0.6, roughness: 0.35 });
+  const geoAro = new THREE.TorusGeometry(CAGE_R + 0.06, 0.035, 8, 64);
+  const aro = new THREE.Mesh(geoAro, matAro);
+  [Math.PI / 4, -Math.PI / 4].forEach((ang) => {
+    const m = new THREE.Mesh(geoAro, matAro);
+    m.rotation.x = ang; giro.add(m);
+  });
 
   // ---------------- ENTORNO (v2.1.0) ----------------
   // Coordenadas locais do grupo: centro da gaiola em y=0; mesa em y = PISO_Y − CAGE_Y.

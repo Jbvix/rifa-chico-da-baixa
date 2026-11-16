@@ -1,8 +1,8 @@
 # GDD — Rifa Solidária Chico da Baixa (Game/Design Document)
 
 - **Autor:** Jossian Brito
-- **Versão do documento:** 2.2.0
-- **Data/Hora:** 2026-11-16 11:15 (BRT, UTC-3)
+- **Versão do documento:** 2.3.0
+- **Data/Hora:** 2026-11-16 11:40 (BRT, UTC-3)
 
 ## 1. Visão
 Rifa beneficente online, transparente e sem atrito no celular: o comprador escolhe um
@@ -40,6 +40,8 @@ A bola extraída corresponde ao dígito sorteado.
 - Painel de fundo curvo com a faixa "RIFA SOLIDÁRIA • CHICO DA BAIXA".
 - Suporte por gaiola: base elíptica, colunas em "A" (θ = atan(abertura/altura)),
   mancais, eixo e manivela que gira junto com o tambor.
+- Aros: dois meridianos cruzados a ±45° em torno do eixo de giro (v2.3.0); vistos de frente
+  são elipses com semi-eixo vertical R·cos 45° ≈ 0,71·R, nunca de perfil.
 - Placa frontal: CENTENA 0–1 / DEZENA 0–9 / UNIDADE 0–9.
 - Sombra de contato por gradiente radial (sem shadow map → leve no celular).
 - Foco: holofote dedicado + aro com brilho pulsante na gaiola em sorteio; as outras
