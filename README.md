@@ -89,6 +89,7 @@ A gaiola virtual (`sorteio.html`) sorteia 001–199 com `crypto.getRandomValues`
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 2.4.0 | 2026-11-16 | Bola vermelha de AUDITORIA em cada gaiola (devolvida e novo giro); Centena azul |
 | 2.3.0 | 2026-11-16 | Aros cruzados a ±45° nas gaiolas (antes o aro central aparecia de perfil) |
 | 2.2.0 | 2026-11-16 | Gaiola centralizada na área livre (desktop/celular), faixa corrigida, elementos de teste ocultos (`?teste=1`) |
 | 2.1.0 | 2026-11-16 | Entorno da gaiola: suporte em A, manivela, mesa, faixa, placas, holofote de foco, pódio |

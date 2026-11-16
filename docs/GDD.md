@@ -1,8 +1,8 @@
 # GDD — Rifa Solidária Chico da Baixa (Game/Design Document)
 
 - **Autor:** Jossian Brito
-- **Versão do documento:** 2.3.0
-- **Data/Hora:** 2026-11-16 11:40 (BRT, UTC-3)
+- **Versão do documento:** 2.4.0
+- **Data/Hora:** 2026-11-16 12:10 (BRT, UTC-3)
 
 ## 1. Visão
 Rifa beneficente online, transparente e sem atrito no celular: o comprador escolhe um
@@ -20,7 +20,8 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 1. **Cartela (`index.html`)** — contadores (Disponíveis, Vendidos, Online, Visitas),
    prêmios, grade 001–199, modal de compra com Pix e contagem de 15 min.
 2. **Regras (`regras.html`)** — regras gerais; seção Loteria Federal oculta.
-3. **Gaiola 3D (`sorteio.html`)** — três gaiolas (Centena 0–1, Dezena 0–9, Unidade 0–9).
+3. **Gaiola 3D (`sorteio.html`)** — três gaiolas: Centena (azul) 0, 1 + A; Dezena (verde) 0–9 + A;
+   Unidade (amarela) 0–9 + A. "A" = bola vermelha de AUDITORIA.
 
 ## 4. Gaiola 3D
 ### 4.1 Física (inalterada na v2.1.0)
@@ -34,6 +35,17 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 ### 4.2 Sorteio
 `crypto.getRandomValues` + rejeição de `x ≥ ⌊2³²/N⌋·N` → uniforme exato em 1..N.
 A bola extraída corresponde ao dígito sorteado.
+
+### 4.2.1 Bola de auditoria (v2.4.0)
+- Cada gaiola tem uma bola vermelha "A". Se ela sair: é exibida (placar vermelho),
+  registrada, devolvida à gaiola, e a gaiola gira de novo até sair um dígito.
+- P(auditoria por extração) = 1/(k+1): centena 1/3, dezena/unidade 1/11.
+  Média de auditorias por gaiola = 1/k: centena 0,5; dezena/unidade 0,1.
+- Os eventos de auditoria são sorteados à parte (crypto) e não alteram a chance de
+  nenhum bilhete: o resultado continua uniforme em 001..199.
+- Limite de 6 auditorias seguidas por gaiola (só para não prender a tela).
+- O total de auditorias aparece sob o resultado e no histórico (modo teste).
+- Vermelho é exclusivo da auditoria; por isso a Centena passou a ser azul.
 
 ### 4.3 Entorno (v2.1.0)
 - Mesa com feltro verde, borda e saia de madeira; névoa linear (14–30).

@@ -4,8 +4,19 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 2.3.0
- Data/Hora: 2026-11-16 11:40 (BRT, UTC-3)
+ Versão   : 2.4.0
+ Data/Hora: 2026-11-16 12:10 (BRT, UTC-3)
+
+ MODIFICAÇÕES v2.4.0 (2026-11-16) — BOLA DE AUDITORIA (aprovado por Charlie Bravo)
+  - [NOVO] Cada gaiola recebe uma bola VERMELHA de AUDITORIA ("A"):
+      Centena: 0, 1 + A   |   Dezena: 0–9 + A   |   Unidade: 0–9 + A
+  - [REGRA] Se a auditoria sair, ela é mostrada, registrada, devolvida à
+    gaiola e a gaiola gira de novo até sair um dígito.
+  - [COR] Centena passa de vermelha para AZUL; o vermelho fica exclusivo da
+    auditoria nas três gaiolas (bolas, aros, placa e placar da Centena).
+  - [JUSTIÇA] O número final continua uniforme em 001..199: os eventos de
+    auditoria são sorteados à parte e não influenciam o resultado.
+  - Física inalterada (a bola nova entra no mesmo modelo de colisões).
 
  MODIFICAÇÕES v2.3.0 (2026-11-16) — aprovado por Charlie Bravo
   - [CENA] Aro único (de perfil, parecia uma haste na gaiola central)
@@ -66,7 +77,7 @@
 <title>Gaiola de Sorteio</title>
 <style>
   :root {
-    --verde: #006B3F; --verde-esc: #00391f; --vermelho: #C8102E; --ouro: #f2b705;
+    --verde: #006B3F; --verde-esc: #00391f; --vermelho: #C8102E; --ouro: #f2b705; --azul: #1565C0;
     --texto: #f3f7f4; --painel: rgba(6, 28, 18, .78); --borda: rgba(255,255,255,.14);
   }
   * { box-sizing: border-box; }
@@ -117,7 +128,10 @@
   .casa .digito.pop { animation: pop .45s ease-out; }
   @keyframes pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
   .casa span { display: block; font-size: .72rem; margin-top: 4px; opacity: .75; text-transform: uppercase; letter-spacing: .5px; }
-  .casa:nth-child(1) .digito:not(.vazio) { border-bottom: 6px solid var(--vermelho); }
+  .casa:nth-child(1) .digito:not(.vazio) { border-bottom: 6px solid var(--azul); }
+  /* Bola de auditoria exibida no placar (v2.4.0) */
+  .casa .digito.auditoria { background: var(--vermelho) !important; color: #fff !important; border-bottom: 6px solid #7a0a1c !important; font-size: 2.6rem; }
+  .resultado small { display: block; font-size: .8rem; opacity: .75; margin-top: 2px; }
   .casa:nth-child(2) .digito:not(.vazio) { border-bottom: 6px solid var(--verde); }
   .casa:nth-child(3) .digito:not(.vazio) { border-bottom: 6px solid var(--ouro); }
   .resultado { min-height: 1.5em; font-size: 1.05rem; margin: 6px 0 10px; }
@@ -208,7 +222,9 @@ const BALL_R = 0.2;                      // raio da bola
 const CAGE_Y = 0.9;                      // altura do centro das gaiolas
 const CAGE_X = [-3.3, 0, 3.3];           // posição das 3 gaiolas
 const PISO_Y = -1.5;                     // altura do tampo da mesa (entorno)
-const CORES = [0xC8102E, 0x00884f, 0xf2b705]; // centena, dezena, unidade
+const CORES = [0x1565C0, 0x00884f, 0xf2b705]; // centena (azul), dezena, unidade
+const COR_AUDITORIA = 0xC8102E;          // vermelho exclusivo da bola de auditoria
+const AUDITORIA = 'A';                   // rótulo da bola de auditoria
 const ROTULOS = ['Centena', 'Dezena', 'Unidade'];
 const API_NUM = '/.netlify/functions/numeros';
 // Modo teste: ?teste=1 mostra os elementos marcados com data-teste.
@@ -390,7 +406,7 @@ function criarGaiola(idx) {
 
   // Placa frontal na base
   const placa = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.42),
-    new THREE.MeshBasicMaterial({ map: texturaPlaca(ROTULOS[idx], idx === 0 ? '0 – 1' : '0 – 9', CORES[idx]), transparent: true }));
+    new THREE.MeshBasicMaterial({ map: texturaPlaca(ROTULOS[idx], (idx === 0 ? '0 – 1' : '0 – 9') + ' + auditoria', CORES[idx]), transparent: true }));
   placa.position.set(0, yMesa + 0.34, 0.95); placa.rotation.x = -0.12; grupo.add(placa);
 
   // Sombra de contato: disco com gradiente radial, logo acima da mesa
@@ -409,10 +425,11 @@ function criarGaiola(idx) {
   podio.rotation.x = Math.PI / 2; podio.position.set(0, CAGE_R + 0.32, 0.6); grupo.add(podio);
 
   // Bolas: centena só tem 0 e 1 (faixa 001..199); dezena e unidade 0..9.
-  const digitos = idx === 0 ? [0, 1] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  // Bolas: centena 0–1, dezena e unidade 0–9, e em TODAS uma auditoria vermelha.
+  const digitos = (idx === 0 ? [0, 1] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).concat(AUDITORIA);
   const geo = new THREE.SphereGeometry(BALL_R, 24, 16);
   digitos.forEach((d) => {
-    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texturaBola(d, CORES[idx]), roughness: 0.35, metalness: 0.05 }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texturaBola(d, d === AUDITORIA ? COR_AUDITORIA : CORES[idx]), roughness: 0.35, metalness: 0.05 }));
     scene.add(mesh);
     const b = { mesh, digito: d, gaiola: idx, p: new THREE.Vector3(), v: new THREE.Vector3(), livre: true };
     reposicionar(b);
@@ -653,7 +670,7 @@ function confete() {
   if (REDUZIR) return;
   const cv = $('confete'), g = cv.getContext('2d');
   cv.width = innerWidth; cv.height = innerHeight;
-  const cores = ['#C8102E', '#00a35f', '#f2b705', '#ffffff'];
+  const cores = ['#1565C0', '#00a35f', '#f2b705', '#ffffff'];
   const p = Array.from({ length: 160 }, () => ({
     x: cv.width / 2, y: cv.height * 0.45, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 14 - 4,
     s: 4 + Math.random() * 6, c: cores[(Math.random() * 4) | 0], a: Math.random() * 6.28, va: (Math.random() - 0.5) * 0.4,
@@ -711,12 +728,46 @@ async function sortear() {
   gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
   await espera(2400);
 
+  const auditorias = [0, 0, 0];
   for (let i = 0; i < 3; i++) {
     $('status').textContent = `Sorteando a ${ROTULOS[i].toLowerCase()}…`;
     focarGaiola(i);                                   // entorno: holofote nesta gaiola
     gaiolas[i].alvo = 0;                              // freia só esta gaiola
     await espera(900);
     if (gaiolas[i]) gaiolas[i].podioAlvo = 0.9;
+
+    /* ---------------- BOLA DE AUDITORIA (v2.4.0) ----------------
+     * A gaiola i tem k bolas de dígito + 1 de auditoria. Cada extração
+     * "pega" uma das k+1 bolas com chance igual, logo:
+     *     P(auditoria) = 1/(k+1)   → centena: 1/3 ; dezena/unidade: 1/11
+     * Nº de auditorias até sair um dígito ~ Geométrica:
+     *     E[auditorias] = p/(1−p) = 1/k → centena 0,5 ; dezena/unidade 0,1
+     * Esse sorteio é independente do número final (já definido por
+     * sortearNumero), então a auditoria NÃO altera a chance de nenhum
+     * bilhete. Limite de 6 auditorias seguidas só para não prender a tela
+     * (chance de atingir na centena: (1/3)^6 ≈ 0,14%).
+     * Analogia: é o teste de leme antes da manobra — prova que o sistema
+     * responde, sem mudar o rumo final do navio. */
+    const k = i === 0 ? 2 : 10;
+    while (auditorias[i] < 6 && sortearNumero(k + 1) === k + 1) {
+      auditorias[i]++;
+      await extrairBola(i, AUDITORIA);
+      const dA = $('d' + i);
+      dA.textContent = AUDITORIA; dA.className = 'digito auditoria pop';
+      $('status').textContent = `Bola de AUDITORIA na ${ROTULOS[i].toLowerCase()} — devolvida à gaiola`;
+      tom(330, 0.25, 'sawtooth', 0.08); tom(262, 0.3, 'sawtooth', 0.08, 0.15);
+      await espera(1300);
+      const bA = bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA);
+      if (bA) reposicionar(bA);                       // volta para dentro da gaiola
+      gaiolas[i].podioAlvo = 0;                       // apaga o pódio durante o novo giro
+      dA.textContent = '–'; dA.className = 'digito vazio';
+      $('status').textContent = `Girando a ${ROTULOS[i].toLowerCase()} novamente…`;
+      gaiolas[i].alvo = 7;
+      await espera(1500);
+      gaiolas[i].alvo = 0;
+      await espera(900);
+      gaiolas[i].podioAlvo = 0.9;
+    }
     await extrairBola(i, digs[i]);
     const d = $('d' + i);
     d.textContent = digs[i]; d.className = 'digito pop';
@@ -738,12 +789,16 @@ async function sortear() {
   else if (vendidos[numero]) situacao = `vendido para <strong></strong>`;
   else situacao = 'número <em>não vendido</em>';
   const res = $('resultado');
-  res.innerHTML = `Número sorteado: <strong>${txt}</strong> — ${situacao}`;
+  const totalAud = auditorias.reduce((a, b) => a + b, 0);
+  const txtAud = totalAud
+    ? `Auditorias: ${totalAud} (centena ${auditorias[0]}, dezena ${auditorias[1]}, unidade ${auditorias[2]})`
+    : 'Auditorias: nenhuma';
+  res.innerHTML = `Número sorteado: <strong>${txt}</strong> — ${situacao}<small>${txtAud}</small>`;
   if (vendidos && vendidos[numero]) res.querySelectorAll('strong')[1].textContent = vendidos[numero].name;
   $('status').textContent = 'Sorteio concluído';
 
   const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  historico.unshift(`${txt} • ${hora}` + (vendidos && vendidos[numero] ? ` • ${vendidos[numero].name}` : ''));
+  historico.unshift(`${txt} • ${hora}` + (vendidos && vendidos[numero] ? ` • ${vendidos[numero].name}` : '') + (totalAud ? ` • ${totalAud} aud.` : ''));
   const lista = $('listaHist'); lista.replaceChildren(...historico.slice(0, 30).map((h) => {
     const li = document.createElement('li'); li.textContent = h; return li;
   }));

@@ -1,6 +1,6 @@
 # Manual do Usuário — Rifa Solidária Chico da Baixa
 
-- **Autor:** Jossian Brito · **Versão:** 2.2.0 · **Data/Hora:** 2026-11-16 11:15 (BRT)
+- **Autor:** Jossian Brito · **Versão:** 2.4.0 · **Data/Hora:** 2026-11-16 12:10 (BRT)
 
 ## Para quem vai comprar
 1. Abra o site e role até a cartela (números **001 a 199**).
@@ -16,6 +16,11 @@ Os contadores no topo mostram em tempo real: disponíveis, vendidos, pessoas onl
 - **Sortear** (ou Espaço/Enter): as três gaiolas giram; a gaiola em foco fica iluminada,
   freia e libera a bola da centena, depois dezena e unidade.
 - O placar mostra o número e se ele foi vendido (com o primeiro nome) ou não.
+- **Bola vermelha "A" (auditoria):** existe uma em cada gaiola. Se ela sair, aparece em
+  vermelho no placar, volta para a gaiola e a gaiola gira de novo. Ela prova que a gaiola
+  está misturando e não muda a chance de nenhum número. A quantidade de auditorias aparece
+  abaixo do resultado.
+- Cores: Centena azul (0 e 1), Dezena verde (0–9), Unidade amarela (0–9).
 - Ícones no topo: 🔊 som · ⛶ tela cheia · ↩ voltar.
 - **Modo teste** (organização): abra `/sorteio.html?teste=1` para ver o histórico 🕘 da sessão e a dica de atalho (Espaço/Enter).
 
