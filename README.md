@@ -129,6 +129,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.2.0 | 2026-11-16 | **Publicado.** Música gospel até o sorteio (desde o toque em ativar som); botão "Ver demonstração das gaiolas" (não oficial, até 2 min antes do início) |
 | 3.1.0 | 2026-11-16 | **Publicado.** Bolas continuam misturando após a parada (condução suave crescente); captura natural ao passar pela comporta, com limite de segurança de horário |
 | 3.0.0 | 2026-11-16 | **Publicado.** Física: 6 esferas fixas de mistura por gaiola; comporta + tubo de vidro com rolamento a=(5/7)g·senθ até copo com lupa; auditoria devolvida por cima e cai pela gravidade |
 | 2.9.0 | 2026-11-16 | **Publicado.** Vozes ElevenLabs (Jossian: abertura/agradecimento; Carla: auditoria/centena/dezena/unidade) e trilha gospel instrumental nova na gaiola |

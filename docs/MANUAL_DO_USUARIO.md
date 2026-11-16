@@ -1,6 +1,6 @@
 # Manual do Usuário — Rifa Solidária Chico da Baixa
 
-- **Autor:** Jossian Brito · **Versão:** 2.9.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
+- **Autor:** Jossian Brito · **Versão:** 3.2.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
 
 ## Para quem vai comprar
 1. Abra o site e role até a cartela (números **001 a 199**).
@@ -25,6 +25,10 @@ Os contadores no topo mostram em tempo real: disponíveis, comprados, pessoas on
 - A organização recebe o resultado por e-mail automaticamente.
 
 ## Gaiola de sorteio (`/sorteio.html`)
+- **Música:** toque em "🔊 Toque para ativar voz e música" — a trilha gospel toca até o sorteio.
+- **Demonstração:** toque em "▶️ Ver demonstração das gaiolas" para ver o giro, a mistura, a bola de
+  auditoria e a passagem pelo tubo. O número da demonstração **não vale**. Disponível até 2 minutos
+  antes do sorteio oficial.
 - No dia oficial tudo é automático (não há botão). Em `?teste=1`, **Sortear (teste)**: as três gaiolas giram; a gaiola em foco fica iluminada,
   freia e libera a bola da centena, depois dezena e unidade.
 - O placar mostra o número e o ganhador (ou "número não comprado").

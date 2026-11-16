@@ -2,8 +2,16 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.1.0
+ * Versão   : 3.2.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.2.0 (2026-11-16 14:30 BRT): MÚSICA ATÉ O SORTEIO + DEMONSTRAÇÃO
+ *   - A trilha gospel toca (em loop) desde o toque em "ativar som" até o
+ *     resultado oficial — não só a partir das 09:55.
+ *   - Botão "Ver demonstração das gaiolas": o visitante assiste ao
+ *     funcionamento completo (giro, mistura, auditoria, tubo, copo).
+ *     Resultado local e NÃO oficial, sem ganhador e sem as falas de
+ *     abertura/agradecimento. Disponível até 2 min antes do início oficial.
+ *     Depois de ~8 s as bolas voltam às gaiolas.
  * MODIFICAÇÕES v3.1.0 (2026-11-16 14:10 BRT): MISTURA CONTINUA APÓS A PARADA
  *   - Condução suave: k cresce de 0 a 80 em 0,8 s (k = 80·(t/0,8)²) e o
  *     amortecimento é 70% do crítico → logo após a parada a bola sorteada se
@@ -998,8 +1006,9 @@ function atualizarRelogio() {
   const ag = dados.agenda, agora = agoraSync();
   const prox = [[ag.inicio, 'Gaiolas começam a girar em'], [ag.t[0], 'Centena em'], [ag.t[1], 'Dezena em'], [ag.t[2], 'Resultado em']]
     .find(([t]) => agora < t);
+  if (!sorteando) atualizarDemo();
   if (agora < ag.inicio) {
-    $('status').textContent = `${MODO_ENSAIO ? 'ENSAIO' : 'Sorteio oficial'}: ${fmtData(ag.fim)} (horário de Brasília)`;
+    if (!sorteando) $('status').textContent = statusEspera();
   } else if (!girando && agora < ag.fim) {
     girando = true;
     gaiolas.forEach((g, i) => { if (!gaiolaFeita[i]) g.alvo = 7 + i * 0.6; });
@@ -1013,6 +1022,8 @@ function atualizarRelogio() {
 async function cicloOficial() {
   try {
     dados = await buscar();
+    if (dados.fase !== 'encerrado' && !finalMostrado) querTrilha(true);   // música até o sorteio
+    atualizarDemo();
   } catch (e) {
     $('status').textContent = 'Sem conexão com o servidor do sorteio. Tentando novamente…';
     return setTimeout(cicloOficial, 5000);
@@ -1054,23 +1065,26 @@ async function cicloOficial() {
  * MODO TESTE (?teste=1) — sorteio manual local, NÃO oficial
  * ========================================================================= */
 let sorteando = false;
-async function sortearTeste() {
-  if (sorteando || !MODO_TESTE) return;
+async function sortearTeste(demo = false) {
+  if (sorteando || !(MODO_TESTE || demo)) return;
+  if (demo && !demoPermitida()) return;
   sorteando = true;
-  const btn = $('btnSortear'); btn.disabled = true;
+  const ROT = demo ? 'DEMONSTRAÇÃO' : 'TESTE';
+  const btn = demo ? $('btnDemo') : $('btnSortear'); btn.disabled = true;
   limparPlacar();
   bolas.forEach((b) => { if (!b.livre) reposicionar(b); });
   gaiolas.forEach((g) => (g.podioAlvo = 0));
-  const cartelaP = consultarCartela();
+  const cartelaP = demo ? Promise.resolve(null) : consultarCartela();
   const numero = sortearNumero(TOTAL);
   const digs = pad(numero).split('').map(Number);
-  $('status').textContent = 'TESTE — girando as gaiolas…';
-  querTrilha(true); falar('voz-abertura');
+  $('status').textContent = `${ROT} — girando as gaiolas…`;
+  querTrilha(true);
+  if (!demo) falar('voz-abertura');                   // "sorteio oficial" só no teste
   gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
   await espera(2400);
   const auditorias = [0, 0, 0];
   for (let i = 0; i < 3; i++) {
-    $('status').textContent = `TESTE — sorteando a ${ROTULOS[i].toLowerCase()}…`;
+    $('status').textContent = `${ROT} — sorteando a ${ROTULOS[i].toLowerCase()}…`;
     focarGaiola(i); gaiolas[i].alvo = 0;
     const kAud = i === 0 ? 2 : 10, vaiAud = auditorias[i] < 6 && sortearNumero(kAud + 1) === kAud + 1;
     conduzir(i, vaiAud ? AUDITORIA : digs[i]);
@@ -1101,6 +1115,26 @@ async function sortearTeste() {
   gaiolas.forEach((g) => (g.alvo = 0)); focarGaiola(null);
   const vend = await cartelaP;
   const ganhador = vend === null ? undefined : (vend[numero] ? { nome: vend[numero].name } : null);
+  if (demo) {
+    // Demonstração: sem ganhador, aviso claro e bolas de volta às gaiolas.
+    $('destaque').textContent = pad(numero); $('destaque').classList.add('on'); somFinal();
+    setTimeout(() => $('destaque').classList.remove('on'), 2200);
+    const res = $('resultado'); res.replaceChildren();
+    const l1 = document.createElement('div'); l1.append('Demonstração: '); const nb = document.createElement('strong'); nb.textContent = pad(numero); l1.append(nb);
+    const l2 = document.createElement('div'); l2.className = 'ganhador'; l2.textContent = 'Não é o resultado oficial.';
+    const sm = document.createElement('small'); sm.textContent = 'Sorteio oficial: 23/12/2026 às 10h (horário de Brasília).';
+    res.append(l1, l2, sm);
+    $('status').textContent = 'DEMONSTRAÇÃO concluída';
+    await espera(8000);
+    limparPlacar();
+    bolas.forEach((b) => { if (!b.livre) devolverBola(b); });
+    gaiolas.forEach((g) => (g.podioAlvo = 0));
+    $('status').textContent = statusEspera();
+    btn.textContent = '▶️ Ver demonstração novamente';
+    btn.disabled = false; sorteando = false;
+    atualizarDemo();
+    return;
+  }
   mostrarFinal(numero, ganhador, auditorias);
   $('status').textContent = 'TESTE concluído (não oficial)';
   if (ganhador) setTimeout(() => falar('voz-agradecimento'), 3500);
@@ -1110,13 +1144,27 @@ async function sortearTeste() {
   sorteando = false;
 }
 
+/* ---------- Demonstração: só antes do sorteio oficial (até inicio − 2 min) ---------- */
+function demoPermitida() {
+  if (MODO_TESTE && !MODO_ENSAIO) return true;
+  return !!dados && dados.fase === 'aguardando' && dados.agenda.inicio - agoraSync() > 120000;
+}
+function statusEspera() {
+  return dados ? `${MODO_ENSAIO ? 'ENSAIO' : 'Sorteio oficial'}: ${fmtData(dados.agenda.fim)} (horário de Brasília)` : '';
+}
+function atualizarDemo() {
+  const b = $('btnDemo'); if (!b) return;
+  b.hidden = !(demoPermitida() || sorteando);
+}
+
 /* ===========================================================================
  * CONTROLES
  * ========================================================================= */
-$('btnSortear').addEventListener('click', sortearTeste);
+$('btnSortear').addEventListener('click', () => sortearTeste(false));
+$('btnDemo').addEventListener('click', () => sortearTeste(true));
 addEventListener('keydown', (e) => {
   if (MODO_TESTE && (e.code === 'Space' || e.key === 'Enter') && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
-    e.preventDefault(); sortearTeste();
+    e.preventDefault(); sortearTeste(false);
   }
 });
 $('btnSom').addEventListener('click', (e) => {
@@ -1138,7 +1186,7 @@ $('ativarSom').addEventListener('click', ativarSom);
 iniciar3D();
 if (MODO_TESTE && !MODO_ENSAIO) {
   $('status').textContent = 'MODO TESTE — sorteio manual, não oficial';
-  consultarCartela();
+  consultarCartela(); querTrilha(true);
 } else {
   consultarCartela();
   cicloOficial();

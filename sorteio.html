@@ -4,7 +4,7 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 3.1.0
+ Versão   : 3.2.0
  Data/Hora: 2026-11-16 11:30 (BRT, UTC-3)
 
  MODIFICAÇÕES v2.7.0 (2026-11-16) — SMARTPHONE
@@ -174,6 +174,9 @@
   .dica { font-size: .72rem; opacity: .6; margin-top: 6px; }
   .btn-som { margin: 0 0 10px; padding: 10px; font-size: 1rem; background: linear-gradient(180deg, #4fd1a5, #1f9e74); color: #04261a; box-shadow: 0 3px 0 #136b4e; }
   .btn-som[hidden] { display: none; }
+  .btn-demo { margin-top: 8px; padding: 11px; font-size: 1rem; }
+  .btn-demo[hidden] { display: none; }
+  @media (orientation: landscape) and (max-height: 500px) { .btn-demo, .btn-som { padding: 8px; font-size: .9rem; } }
 
   /* Histórico */
   .historico {
@@ -257,6 +260,8 @@
   <div class="resultado" id="resultado" aria-live="assertive"></div>
   <!-- Sorteio manual só no modo teste (?teste=1). O oficial é automático. -->
   <button class="btn" id="btnSortear" hidden data-teste>Sortear (teste)</button>
+  <!-- v3.2.0: demonstração para o visitante (não oficial), até 2 min antes do sorteio -->
+  <button class="btn btn-demo" id="btnDemo" hidden>▶️ Ver demonstração das gaiolas</button>
   <div class="dica" hidden data-teste>Atalho: Espaço ou Enter</div>
   <div class="girar">🔄 Gire o celular para ver as gaiolas maiores</div>
 </section>
