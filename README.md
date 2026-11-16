@@ -7,16 +7,16 @@ Página interativa da rifa solidária em prol da manutenção da cama hospitalar
 ## Visão Geral
 
 Sistema completo de rifa online com:
-- Cartela interativa de 200 números (001 a 199)
+- Cartela interativa de **199 números (001 a 199)**
 - Cadastro de comprador (nome + telefone)
 - Pix Copia e Cola com valor de R$ 20,00 já preenchido
 - Contagem regressiva para confirmação de pagamento
 - Atualização automática da cartela em tempo real
 - Notificação sonora quando alguém confirma pagamento
-- Contadores de visitas e usuários online
+- Contadores de visitas e usuários online (presença real por heartbeat, TTL 45 s)
 - Persistência de dados via Netlify Blobs
-- Página de regras do sorteio (Loteria Federal)
-- Gaiola virtual 3D para simulação (página interna)
+- Página de regras do sorteio (regra da Loteria Federal **oculta** desde a v2.0.0)
+- Gaiola virtual 3D com sorteio criptográfico (página interna)
 
 ## Links
 
@@ -28,13 +28,12 @@ Sistema completo de rifa online com:
 
 ## Funcionalidades Principais
 
-- **Cartela**: Grid responsivo com números de 001 a 199. Números vendidos aparecem marcados com o nome do comprador.
+- **Cartela**: Grid responsivo com números de 001 a 199. Números vendidos aparecem com o **primeiro nome** do comprador (telefone nunca é público).
 - **Escolha de número**: Clique → modal com dados do comprador + Pix Copia e Cola.
 - **Pix**: Código Copia e Cola completo com valor R$ 20,00. Chave creditada diretamente na conta da Sra. Maria Lúcia (Nubank).
 - **Confirmação**: Botão "Já paguei" marca o número como vendido e dispara notificação sonora para todos online.
 - **Atualização automática**: Polling periódico atualiza a cartela sem reload.
 - **Estatísticas**: Contador de visitas e usuários online.
-- **Regras transparentes**: Sorteio baseado nos 3 últimos dígitos dos prêmios da Loteria Federal (000–200).
 
 ## Estrutura do Projeto
 
@@ -42,19 +41,25 @@ Sistema completo de rifa online com:
 ├── index.html              # Página principal da rifa
 ├── regras.html             # Regras detalhadas do sorteio
 ├── sorteio.html            # Gaiola virtual 3D (teste interno)
-├── poster.jpg              # Pôster da rifa (Open Graph)
+├── manutencao.html         # Página de manutenção (reserva)
+├── poster.jpg              # Pôster da rifa (Open Graph) — NÃO está no repositório
+├── package.json            # Dependência @netlify/blobs ^11
 ├── netlify.toml            # Configuração Netlify
+├── docs/
+│   ├── GDD.md              # Game/Design Document
+│   └── MANUAL_DO_USUARIO.md
 └── netlify/
+    ├── lib/rifa-config.js  # Constantes, validações e escrita atômica (CAS)
     └── functions/
         ├── numeros.js      # API de números vendidos (Netlify Blobs)
-        └── stats.js        # API de estatísticas e notificações
+        └── stats.js        # API de visitas, online e último pagamento
 ```
 
 ## Tecnologias
 
 - **Frontend**: HTML + CSS + JavaScript puro (sem frameworks)
 - **Backend**: Netlify Functions + Netlify Blobs (persistência)
-- **3D**: Three.js + Cannon.js (gaiola de simulação)
+- **3D**: Three.js r128 + física própria (gaiola de simulação)
 - **Hospedagem**: Netlify (site estático + functions)
 - **Pagamento**: Pix Copia e Cola (Nubank)
 
@@ -68,14 +73,25 @@ O valor do Pix é creditado **diretamente** na conta da Sra. Maria Lúcia.
 
 ## Sorteio
 
-Por enquanto o sorteio oficial utiliza o resultado da **Loteria Federal**:
+A regra pela **Loteria Federal está oculta** desde a v2.0.0 (conteúdo preservado com
+atributo `hidden` em `index.html` e `regras.html`). A data e a forma do sorteio serão
+divulgadas pela responsável.
 
-- São considerados os 3 últimos dígitos (centena) dos prêmios (1º ao 5º).
-- Válidos apenas números entre 000 e 200.
-- Se a centena for > 200, pula para o próximo prêmio.
-- Se nenhum número válido for encontrado ou o número não tiver sido vendido, o sorteio é adiado para a próxima extração.
+A gaiola virtual (`sorteio.html`) sorteia 001–199 com `crypto.getRandomValues`
+(distribuição uniforme exata) e mostra se o número foi vendido.
 
-A gaiola virtual (`sorteio.html`) está disponível para testes e possível uso futuro. Não é o método oficial no momento.
+## Administração
+
+- `RIFA_ADMIN_TOKEN` (variável de ambiente no Netlify): habilita `POST {action:"clear"}`
+  com o header `x-admin-token`. Sem a variável, a limpeza fica desabilitada.
+
+## Histórico de versões
+
+| Versão | Data | Resumo |
+|--------|------|--------|
+| 2.1.0 | 2026-11-16 | Entorno da gaiola: suporte em A, manivela, mesa, faixa, placas, holofote de foco, pódio |
+| 2.0.0 | 2026-11-16 | 199 números; contadores online/visitas corrigidos; Loteria Federal oculta; segurança/LGPD; nova gaiola |
+| 1.0.0 | 2026-11-16 | Versão inicial |
 
 ## Deploy
 
@@ -87,7 +103,7 @@ O site está hospedado no Netlify. Para atualizar:
 
 ## Desenvolvimento
 
-Projeto desenvolvido com apoio do Grok (xAI).
+Autor: **Jossian Brito**.
 
 ---
 

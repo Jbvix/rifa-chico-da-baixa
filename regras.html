@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+=============================================================================
+ Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
+ Arquivo  : regras.html
+ Autor    : Jossian Brito
+ Versão   : 2.0.0
+ Data/Hora: 2026-11-16 09:48 (BRT, UTC-3)
+
+ MODIFICAÇÕES v2.0.0 (2026-11-16)
+  - [OCULTO] Regra do sorteio pela Loteria Federal ocultada (seção com
+    atributo `hidden`), preservada para reativação futura.
+  - [BUG] Faixa corrigida: 199 números (001 a 199). A v1.x dizia
+    "200 números (000 a 200)", o que somaria 201 bilhetes.
+=============================================================================
+-->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -17,29 +32,38 @@
 <div class="container">
   <header>
     <h1>🎫 REGRAS DO SORTEIO</h1>
-    <p>Rifa de 200 números (000 a 200)</p>
+    <p>Rifa de 199 números (001 a 199)</p>
   </header>
 
   <div class="box">
+    <ul>
+      <li>Cada número custa R$ 20,00 e é pago via Pix.</li>
+      <li>O sorteio será realizado após a venda do último número.</li>
+      <li>A data e a forma do sorteio serão divulgadas pela responsável, Dna Lúcia.</li>
+    </ul>
+    <p><strong>Boa sorte a todos! 🍀</strong></p>
+  </div>
+
+  <!-- [OCULTO v2.0.0] Sorteio pela Loteria Federal. Para reativar, remova `hidden`
+       e ajuste a faixa de centenas válidas para 001–199. -->
+  <div class="box" hidden data-loteria>
     <p>Para garantir total transparência, o resultado será baseado nos <strong>3 últimos dígitos (centena)</strong> dos prêmios da Loteria Federal do dia combinado.</p>
 
     <h3>Como funciona a apuração:</h3>
     <ul>
-      <li>O ganhador será o portador da primeira centena válida (entre 000 e 200) que aparecer na ordem oficial dos resultados, começando pelo 1º prêmio até o 5º prêmio.</li>
-      <li>Se a centena de um prêmio for 201 ou maior, ela é desconsiderada e passamos para o prêmio seguinte.</li>
+      <li>O ganhador será o portador da primeira centena válida (entre 001 e 199) que aparecer na ordem oficial dos resultados, começando pelo 1º prêmio até o 5º prêmio.</li>
+      <li>Se a centena de um prêmio for 000 ou 200 ou maior, ela é desconsiderada e passamos para o prêmio seguinte.</li>
     </ul>
 
     <div class="example">
       <strong>Exemplo prático:</strong><br>
-      • 1º prêmio: 45872 (passou de 200 — pula)<br>
-      • 2º prêmio: 12450 (passou de 200 — pula)<br>
-      • 3º prêmio: 89142 (está entre 000 e 200 — <strong>Bilhete 142 é o ganhador!</strong>)
+      • 1º prêmio: 45872 (passou de 199 — pula)<br>
+      • 2º prêmio: 12450 (passou de 199 — pula)<br>
+      • 3º prêmio: 89142 (está entre 001 e 199 — <strong>Bilhete 142 é o ganhador!</strong>)
     </div>
 
     <h3>E se não sair nenhum número válido?</h3>
-    <p>Caso nenhum dos 5 prêmios tenha uma centena entre 000 e 200 (ou caso o número sorteado não tenha sido vendido), o sorteio fica automaticamente adiado para a próxima extração da Loteria Federal, seguindo a mesma regra.</p>
-
-    <p><strong>Boa sorte a todos! 🍀</strong></p>
+    <p>Caso nenhum dos 5 prêmios tenha uma centena entre 001 e 199 (ou caso o número sorteado não tenha sido vendido), o sorteio fica automaticamente adiado para a próxima extração da Loteria Federal, seguindo a mesma regra.</p>
   </div>
 
   <a class="back" href="/">← Voltar para a rifa</a>

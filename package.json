@@ -1,0 +1,9 @@
+{
+  "name": "rifa-chico-da-baixa",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Rifa Solidária – Sr. Francisco Felício (Chico da Baixa). Autor: Jossian Brito.",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.9"
+  }
+}

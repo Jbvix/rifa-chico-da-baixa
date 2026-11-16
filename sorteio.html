@@ -1,1 +1,716 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Manutenção temporária</title><style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#081321;color:#eff6ff;font:18px/1.6 system-ui;padding:24px}main{max-width:660px;padding:32px;border:1px solid #476077;border-radius:20px;background:#142638}h1{font-size:30px;line-height:1.2}small{color:#b7ccdb}.lock{font-size:48px}</style></head><body><main><div class="lock" aria-hidden="true">🔒</div><h1>Estamos realizando melhorias e correções</h1><p>As reservas e os novos registros estão temporariamente suspensos.</p><p>Previsão de reabertura: <strong>hoje, 16/11/2026, às 7h, horário de Brasília</strong>, condicionada à conclusão das correções e dos testes.</p><p>A reabertura não será automática. Se os testes não estiverem concluídos, a página continuará fechada.</p><p>Os registros existentes serão preservados. Não efetue novos pagamentos enquanto a página estiver em manutenção.</p><small>Obrigado pela compreensão.</small></main></body></html>
+<!DOCTYPE html>
+<!--
+=============================================================================
+ Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
+ Arquivo  : sorteio.html (Gaiola virtual 3D)
+ Autor    : Jossian Brito
+ Versão   : 2.1.0
+ Data/Hora: 2026-11-16 10:30 (BRT, UTC-3)
+
+ MODIFICAÇÕES v2.1.0 (2026-11-16) — ENTORNO DA GAIOLA (física inalterada)
+  - [CENA] Suporte completo: base no chão, colunas em "A", mancais no eixo e
+    manivela que gira junto com o tambor.
+  - [CENA] Mesa com feltro verde e borda de madeira, painel de fundo curvo
+    com a faixa "RIFA SOLIDÁRIA • CHICO DA BAIXA", névoa leve de profundidade.
+  - [CENA] Placa frontal em cada base: CENTENA 0–1 / DEZENA 0–9 / UNIDADE 0–9.
+  - [CENA] Sombra de contato (disco com gradiente radial) sob cada gaiola.
+  - [UX] Gaiola em foco: holofote dedicado + aro com brilho pulsante na
+    gaiola que está sendo sorteada; as demais ficam levemente esmaecidas.
+  - [UX] Pódio luminoso (anel) sob a bola extraída.
+  - NÃO ALTERADO: passoFisica(), constantes G/ARRASTO/REST/ATRITO/DT,
+    dinâmica de ω (τ = 0,4 s) e o sorteio criptográfico.
+
+ MODIFICAÇÕES v2.0.0 (2026-11-16) — reescrita de UX e de física
+  - [BUG] As bolas nasciam DENTRO de um corpo esférico sólido (Cannon.js) e
+    eram expulsas para fora da gaiola; o resultado era um Math.random()
+    sem relação com as bolas na tela. Agora: física própria (sem Cannon.js)
+    com bolas confinadas na gaiola, e a bola extraída É o dígito sorteado.
+  - [JUSTIÇA] Sorteio com crypto.getRandomValues + amostragem por rejeição
+    (distribuição uniforme exata em 001..199). Math.random() não é
+    adequado para sorteio.
+  - [UX] Revelação dígito a dígito (centena → dezena → unidade) com a bola
+    saindo da gaiola; placar com 3 casas; número final em destaque;
+    confete; sons sintetizados (sem arquivos externos); botão de som;
+    tela cheia; histórico da sessão; atalhos Espaço/Enter.
+  - [UX] Consulta a cartela: mostra se o número sorteado foi vendido e o
+    primeiro nome do comprador (ou "não vendido").
+  - [UX] Enquadramento automático da câmera (retrato/paisagem), bolas
+    numeradas e coloridas por gaiola, rótulos, aria-live para leitores
+    de tela, respeito a prefers-reduced-motion, fallback sem WebGL.
+  - [A11Y] Removido user-scalable=no (impedia zoom).
+=============================================================================
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Gaiola de Sorteio</title>
+<style>
+  :root {
+    --verde: #006B3F; --verde-esc: #00391f; --vermelho: #C8102E; --ouro: #f2b705;
+    --texto: #f3f7f4; --painel: rgba(6, 28, 18, .78); --borda: rgba(255,255,255,.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(ellipse at 50% 30%, #0f5a38 0%, #062b1b 55%, #021209 100%);
+  }
+  #palco { position: fixed; inset: 0; }
+  #palco canvas { display: block; }
+
+  /* Barra superior */
+  .topo {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 14px; background: linear-gradient(180deg, rgba(0,0,0,.45), transparent);
+  }
+  .topo h1 { margin: 0; font-size: 1.05rem; letter-spacing: .3px; }
+  .topo h1 small { display: block; font-weight: 400; opacity: .75; font-size: .75rem; }
+  .icones { display: flex; gap: 6px; }
+  .icone {
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--borda);
+    background: var(--painel); color: var(--texto); font-size: 1.1rem; cursor: pointer;
+    display: grid; place-items: center; text-decoration: none;
+  }
+  .icone:focus-visible, .btn:focus-visible { outline: 3px solid var(--ouro); outline-offset: 2px; }
+
+  /* Painel inferior: placar + botão */
+  .painel {
+    position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+    z-index: 10; width: min(520px, calc(100% - 24px));
+    background: var(--painel); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--borda); border-radius: 20px; padding: 14px 16px 16px; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.35);
+  }
+  .status { font-size: .9rem; opacity: .85; min-height: 1.3em; margin-bottom: 8px; }
+  .placar { display: flex; justify-content: center; gap: 10px; margin-bottom: 6px; }
+  .casa { width: 74px; }
+  .casa .digito {
+    height: 84px; border-radius: 14px; display: grid; place-items: center;
+    font-size: 3.2rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    background: #fff; color: #0b2b1c; box-shadow: inset 0 -6px 0 rgba(0,0,0,.08);
+    transition: transform .25s;
+  }
+  .casa .digito.vazio { background: rgba(255,255,255,.08); color: rgba(255,255,255,.35); box-shadow: none; }
+  .casa .digito.pop { animation: pop .45s ease-out; }
+  @keyframes pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+  .casa span { display: block; font-size: .72rem; margin-top: 4px; opacity: .75; text-transform: uppercase; letter-spacing: .5px; }
+  .casa:nth-child(1) .digito:not(.vazio) { border-bottom: 6px solid var(--vermelho); }
+  .casa:nth-child(2) .digito:not(.vazio) { border-bottom: 6px solid var(--verde); }
+  .casa:nth-child(3) .digito:not(.vazio) { border-bottom: 6px solid var(--ouro); }
+  .resultado { min-height: 1.5em; font-size: 1.05rem; margin: 6px 0 10px; }
+  .resultado strong { color: var(--ouro); }
+  .btn {
+    width: 100%; border: 0; border-radius: 14px; padding: 15px; cursor: pointer;
+    font-size: 1.15rem; font-weight: 700; color: #1a1300;
+    background: linear-gradient(180deg, #ffd34d, var(--ouro)); box-shadow: 0 4px 0 #a87c00;
+    transition: transform .1s, filter .2s;
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #a87c00; }
+  .btn:disabled { filter: grayscale(.8) brightness(.8); cursor: wait; }
+  .dica { font-size: .72rem; opacity: .6; margin-top: 6px; }
+
+  /* Histórico */
+  .historico {
+    position: fixed; top: 64px; right: 12px; z-index: 9; width: 190px; max-height: 40vh; overflow: auto;
+    background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; padding: 10px 12px; font-size: .85rem;
+  }
+  .historico[hidden] { display: none; }
+  .historico h2 { font-size: .8rem; margin: 0 0 6px; text-transform: uppercase; opacity: .75; }
+  .historico ol { margin: 0; padding-left: 18px; }
+  .historico li { margin: 3px 0; }
+
+  /* Número gigante no final */
+  .destaque {
+    position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; pointer-events: none;
+    font-size: min(38vw, 260px); font-weight: 900; color: #fff; opacity: 0;
+    text-shadow: 0 0 40px rgba(242,183,5,.8), 0 8px 0 rgba(0,0,0,.25);
+    transition: opacity .4s, transform .6s; transform: scale(.6);
+  }
+  .destaque.on { opacity: 1; transform: scale(1); }
+  #confete { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
+  .semwebgl { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; opacity: .8; }
+
+  @media (max-width: 560px) {
+    .historico { top: auto; bottom: 250px; right: 8px; width: 150px; max-height: 22vh; }
+    .casa { width: 64px; } .casa .digito { height: 72px; font-size: 2.6rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .casa .digito.pop { animation: none; } .destaque { transition: opacity .2s; transform: none; }
+  }
+</style>
+</head>
+<body>
+<div id="palco" aria-hidden="true"></div>
+<canvas id="confete" aria-hidden="true"></canvas>
+<div id="destaque" class="destaque" aria-hidden="true"></div>
+
+<header class="topo">
+  <h1>🎱 Gaiola de Sorteio<small>Rifa Solidária • Chico da Baixa • 001 a <span id="totalTxt">199</span></small></h1>
+  <div class="icones">
+    <button class="icone" id="btnHist" title="Histórico" aria-label="Mostrar histórico">🕘</button>
+    <button class="icone" id="btnSom" title="Som" aria-label="Desligar som" aria-pressed="true">🔊</button>
+    <button class="icone" id="btnTela" title="Tela cheia" aria-label="Tela cheia">⛶</button>
+    <a class="icone" href="/" title="Voltar à rifa" aria-label="Voltar à rifa">↩</a>
+  </div>
+</header>
+
+<aside class="historico" id="historico" hidden>
+  <h2>Sorteios desta sessão</h2>
+  <ol id="listaHist"></ol>
+</aside>
+
+<section class="painel" aria-label="Painel do sorteio">
+  <div class="status" id="status" aria-live="polite">Pronto para sortear</div>
+  <div class="placar" aria-hidden="true">
+    <div class="casa"><div class="digito vazio" id="d0">–</div><span>Centena</span></div>
+    <div class="casa"><div class="digito vazio" id="d1">–</div><span>Dezena</span></div>
+    <div class="casa"><div class="digito vazio" id="d2">–</div><span>Unidade</span></div>
+  </div>
+  <div class="resultado" id="resultado" aria-live="assertive"></div>
+  <button class="btn" id="btnSortear">Sortear</button>
+  <div class="dica">Atalho: Espaço ou Enter</div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* ===========================================================================
+ * CONFIGURAÇÃO
+ * ========================================================================= */
+let TOTAL = 199;                         // atualizado pela API, se disponível
+const REDUZIR = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T = REDUZIR ? 0.35 : 1;            // fator de tempo das animações
+const CAGE_R = 1.45;                     // raio interno da gaiola (unid. 3D)
+const BALL_R = 0.2;                      // raio da bola
+const CAGE_Y = 0.9;                      // altura do centro das gaiolas
+const CAGE_X = [-3.3, 0, 3.3];           // posição das 3 gaiolas
+const PISO_Y = -1.5;                     // altura do tampo da mesa (entorno)
+const CORES = [0xC8102E, 0x00884f, 0xf2b705]; // centena, dezena, unidade
+const ROTULOS = ['Centena', 'Dezena', 'Unidade'];
+const API_NUM = '/.netlify/functions/numeros';
+
+const $ = (id) => document.getElementById(id);
+const espera = (ms) => new Promise((r) => setTimeout(r, ms * T));
+const pad = (n) => String(n).padStart(3, '0');
+
+/* ===========================================================================
+ * SORTEIO JUSTO — crypto.getRandomValues + amostragem por rejeição
+ *
+ *   Problema: x % N com x uniforme em [0, 2^32) favorece levemente os
+ *   primeiros (2^32 mod N) valores (viés de módulo).
+ *   Solução: descartar x ≥ limite, onde limite = ⌊2^32 / N⌋ · N.
+ *   Assim cada resto 0..N−1 tem exatamente ⌊2^32/N⌋ pré-imagens.
+ *   Para N = 199: limite = 21 582 457·199 → descarta só 0,000002% dos casos.
+ *   Resultado = 1 + (x mod N)  ∈ [1, N].
+ *   Analogia: é como ignorar a leitura do ecobatímetro quando o casco
+ *   está fora do prumo — só aceitamos medições na condição válida.
+ * ========================================================================= */
+function sortearNumero(N) {
+  const limite = Math.floor(0x100000000 / N) * N;
+  const buf = new Uint32Array(1);
+  do { crypto.getRandomValues(buf); } while (buf[0] >= limite);
+  return 1 + (buf[0] % N);
+}
+
+/* ===========================================================================
+ * ÁUDIO — sons sintetizados com WebAudio (sem baixar arquivos)
+ * ========================================================================= */
+let somLigado = true, actx = null;
+function tom(freq, dur = 0.12, tipo = 'sine', vol = 0.15, atraso = 0) {
+  if (!somLigado) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = actx.currentTime + atraso;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = tipo; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(actx.destination);
+    o.start(t0); o.stop(t0 + dur);
+  } catch (e) {}
+}
+const somClique = () => tom(900 + Math.random() * 500, 0.03, 'square', 0.025);
+const somRevela = (i) => { tom(523 + i * 130, 0.18, 'triangle', 0.2); tom(784 + i * 130, 0.22, 'sine', 0.12, 0.08); };
+const somFinal = () => [523, 659, 784, 1047].forEach((f, i) => tom(f, 0.35, 'triangle', 0.18, i * 0.12));
+
+/* ===========================================================================
+ * CENA 3D (Three.js r128)
+ * ========================================================================= */
+let renderer, scene, camera, gaiolas = [], bolas = [], webglOk = true;
+
+function texturaBola(digito, cor) {
+  // Textura equirretangular 256×128. Em SphereGeometry, u=0.25 aponta para +z
+  // (câmera) com rotação zero; desenhamos o dígito em u=0.25 e u=0.75 para
+  // ele ser visível dos dois lados enquanto a bola gira.
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#' + cor.toString(16).padStart(6, '0'); g.fillRect(0, 0, 256, 128);
+  [64, 192].forEach((x) => {
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, 64, 30, 40, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#111'; g.font = 'bold 54px system-ui, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(digito), x, 67);
+  });
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+
+// Placa de identificação da gaiola (canvas → textura).
+function texturaPlaca(titulo, faixa, cor) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,20,15,.92)'; g.beginPath(); g.roundRect ? g.roundRect(4, 4, 504, 120, 22) : g.rect(4, 4, 504, 120); g.fill();
+  g.fillStyle = '#' + cor.toString(16).padStart(6, '0'); g.fillRect(4, 104, 504, 20);
+  g.fillStyle = '#fff'; g.font = 'bold 50px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(titulo.toUpperCase(), 256, 46);
+  g.font = '26px system-ui, sans-serif'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText('bolas ' + faixa, 256, 86);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+
+// Gradiente radial preto → transparente (sombra de contato barata, sem shadow map).
+let _texSombra = null;
+function texturaSombra() {
+  if (_texSombra) return _texSombra;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+  r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return (_texSombra = new THREE.CanvasTexture(c));
+}
+
+// Faixa do painel de fundo.
+function texturaFaixa() {
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
+  const g = c.getContext('2d');
+  const lg = g.createLinearGradient(0, 0, 0, 256);
+  lg.addColorStop(0, '#0d4a2f'); lg.addColorStop(1, '#062a1a');
+  g.fillStyle = lg; g.fillRect(0, 0, 2048, 256);
+  g.fillStyle = '#f2b705'; g.fillRect(0, 0, 2048, 8); g.fillRect(0, 248, 2048, 8);
+  g.font = 'bold 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText('RIFA SOLIDÁRIA • CHICO DA BAIXA', 1024, 132);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+
+// Gaiola em foco: holofote + brilho do aro na gaiola i; null = todas neutras.
+function focarGaiola(i) {
+  gaiolas.forEach((g, k) => (g.focoAlvo = i === null ? 0 : (k === i ? 1 : -1)));
+}
+
+function criarGaiola(idx) {
+  const grupo = new THREE.Group();
+  grupo.position.set(CAGE_X[idx], CAGE_Y, 0);
+  scene.add(grupo);
+
+  // Gaiola giratória: arame (wireframe) dourado + "vidro" levemente visível.
+  const giro = new THREE.Group(); grupo.add(giro);
+  giro.add(new THREE.Mesh(
+    new THREE.SphereGeometry(CAGE_R + 0.05, 18, 12),
+    new THREE.MeshBasicMaterial({ color: 0xe8c45a, wireframe: true, transparent: true, opacity: 0.55 })));
+  giro.add(new THREE.Mesh(
+    new THREE.SphereGeometry(CAGE_R + 0.04, 32, 24),
+    new THREE.MeshStandardMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.07, roughness: 0.1, metalness: 0.2, depthWrite: false })));
+  // Anéis de reforço (aros) em cor da gaiola
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(CAGE_R + 0.06, 0.035, 8, 64),
+    new THREE.MeshStandardMaterial({ color: CORES[idx], metalness: 0.6, roughness: 0.35 }));
+  aro.rotation.y = Math.PI / 2; giro.add(aro);
+
+  // ---------------- ENTORNO (v2.1.0) ----------------
+  // Coordenadas locais do grupo: centro da gaiola em y=0; mesa em y = PISO_Y − CAGE_Y.
+  const yMesa = PISO_Y - CAGE_Y;                       // = −2,4 com os valores atuais
+  const metal = new THREE.MeshStandardMaterial({ color: 0xb8c0c4, metalness: 0.85, roughness: 0.28 });
+  const metalEsc = new THREE.MeshStandardMaterial({ color: 0x4a5257, metalness: 0.7, roughness: 0.4 });
+
+  // Eixo horizontal (x)
+  const eixo = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, CAGE_R * 2 + 0.9, 16), metal);
+  eixo.rotation.z = Math.PI / 2; grupo.add(eixo);
+
+  // Base: chapa elíptica sobre a mesa
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.12, 40), metalEsc);
+  base.scale.set(CAGE_R + 0.55, 1, 0.75);
+  base.position.y = yMesa + 0.06; grupo.add(base);
+
+  // Colunas em "A" de cada lado: duas hastes inclinadas que se encontram no mancal.
+  // Inclinação θ = atan(abertura / altura) — mais abertura, mais estabilidade.
+  const lado = CAGE_R + 0.32, altura = -yMesa - 0.12, abertura = 0.38;
+  const compr = Math.hypot(altura, abertura), theta = Math.atan2(abertura, altura);
+  [-1, 1].forEach((s) => {
+    [-1, 1].forEach((f) => {
+      const haste = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, compr, 10), metal);
+      haste.position.set(s * lado, yMesa + 0.12 + altura / 2, f * abertura / 2);
+      haste.rotation.x = -f * theta;                 // topo converge no mancal (z=0)
+      grupo.add(haste);
+    });
+    // Mancal (rolamento) no topo da coluna
+    const mancal = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.04, 10, 24), metalEsc);
+    mancal.rotation.y = Math.PI / 2; mancal.position.x = s * lado; grupo.add(mancal);
+  });
+
+  // Manivela na ponta direita do eixo — presa ao "giro", gira junto com o tambor.
+  const braco = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.07), metal);
+  braco.position.set(CAGE_R + 0.48, 0.19, 0); giro.add(braco);
+  const pega = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.26, 12),
+    new THREE.MeshStandardMaterial({ color: CORES[idx], roughness: 0.5 }));
+  pega.rotation.z = Math.PI / 2; pega.position.set(CAGE_R + 0.6, 0.38, 0); giro.add(pega);
+
+  // Placa frontal na base
+  const placa = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.42),
+    new THREE.MeshBasicMaterial({ map: texturaPlaca(ROTULOS[idx], idx === 0 ? '0 – 1' : '0 – 9', CORES[idx]), transparent: true }));
+  placa.position.set(0, yMesa + 0.34, 0.95); placa.rotation.x = -0.12; grupo.add(placa);
+
+  // Sombra de contato: disco com gradiente radial, logo acima da mesa
+  const sombra = new THREE.Mesh(new THREE.PlaneGeometry(CAGE_R * 3.2, CAGE_R * 1.9),
+    new THREE.MeshBasicMaterial({ map: texturaSombra(), transparent: true, depthWrite: false }));
+  sombra.rotation.x = -Math.PI / 2; sombra.position.y = yMesa + 0.005; grupo.add(sombra);
+
+  // Holofote dedicado (aceso só quando esta gaiola está em foco)
+  const holofote = new THREE.SpotLight(0xfff1c9, 0, 14, 0.42, 0.55, 1.2);
+  holofote.position.set(CAGE_X[idx] * 0.6, CAGE_Y + 5.5, 3.2);
+  holofote.target = grupo; scene.add(holofote);
+
+  // Pódio: anel luminoso que aparece sob a bola extraída
+  const podio = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 10, 48),
+    new THREE.MeshBasicMaterial({ color: CORES[idx], transparent: true, opacity: 0 }));
+  podio.rotation.x = Math.PI / 2; podio.position.set(0, CAGE_R + 0.32, 0.6); grupo.add(podio);
+
+  // Bolas: centena só tem 0 e 1 (faixa 001..199); dezena e unidade 0..9.
+  const digitos = idx === 0 ? [0, 1] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const geo = new THREE.SphereGeometry(BALL_R, 24, 16);
+  digitos.forEach((d) => {
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texturaBola(d, CORES[idx]), roughness: 0.35, metalness: 0.05 }));
+    scene.add(mesh);
+    const b = { mesh, digito: d, gaiola: idx, p: new THREE.Vector3(), v: new THREE.Vector3(), livre: true };
+    reposicionar(b);
+    bolas.push(b);
+  });
+
+  gaiolas.push({ grupo, giro, omega: 0, alvo: 0, aro, holofote, podio, foco: 0, focoAlvo: 0, podioAlvo: 0 });
+}
+
+// Coloca a bola em um ponto aleatório da metade inferior da gaiola.
+function reposicionar(b) {
+  const c = new THREE.Vector3(CAGE_X[b.gaiola], CAGE_Y, 0);
+  const r = (CAGE_R - BALL_R) * 0.7;
+  b.p.set(c.x + (Math.random() - 0.5) * r, c.y - Math.random() * r * 0.8, (Math.random() - 0.5) * r);
+  b.v.set(0, 0, 0);
+  b.livre = true;
+  b.mesh.scale.setScalar(1);
+  b.mesh.position.copy(b.p);
+}
+
+/* ===========================================================================
+ * FÍSICA DAS BOLAS (passo fixo de 1/240 s)
+ *
+ *   1) Gravidade + arrasto viscoso:    v ← v + g·dt ;  v ← v·(1 − k·dt)
+ *   2) Integração (Euler semi-implícito): p ← p + v·dt
+ *   3) Parede da gaiola (esfera de raio R−r): se |p−c| > R−r
+ *        n = (p−c)/|p−c|  (normal para fora)
+ *        reflexão:  v ← v − (1+e)(v·n)n          e = restituição (0,55)
+ *        atrito com a parede que gira com ω em torno de x:
+ *          v_parede = ω × (p−c) = (0, −ω·dz, ω·dy)
+ *          v ← v − μ·[(v − v_parede) tangencial]   μ = 0,25
+ *      → É a mesma ideia da camada-limite: o fluido (bola) junto à parede
+ *        móvel é arrastado pela parede, como a água junto ao casco.
+ *   4) Colisão bola-bola (esferas iguais): separa a sobreposição meio a
+ *      meio e troca a componente normal da velocidade relativa.
+ * ========================================================================= */
+const G = -9.0, ARRASTO = 0.35, REST = 0.55, ATRITO = 0.25, DT = 1 / 240;
+const tmp = new THREE.Vector3(), n = new THREE.Vector3(), vp = new THREE.Vector3();
+
+function passoFisica(dt) {
+  for (const b of bolas) {
+    if (!b.livre) continue;
+    const gai = gaiolas[b.gaiola];
+    b.v.y += G * dt;
+    b.v.multiplyScalar(1 - ARRASTO * dt);
+    b.p.addScaledVector(b.v, dt);
+
+    tmp.set(b.p.x - CAGE_X[b.gaiola], b.p.y - CAGE_Y, b.p.z);
+    const dist = tmp.length(), maxR = CAGE_R - BALL_R;
+    if (dist > maxR) {
+      n.copy(tmp).divideScalar(dist);
+      b.p.set(CAGE_X[b.gaiola], CAGE_Y, 0).addScaledVector(n, maxR);
+      const vn = b.v.dot(n);
+      if (vn > 0) {
+        b.v.addScaledVector(n, -(1 + REST) * vn);
+        if (Math.abs(gai.omega) > 1 && vn > 1.2) somClique();
+      }
+      vp.set(0, -gai.omega * tmp.z, gai.omega * tmp.y);   // ω × r
+      vp.subVectors(b.v, vp);                              // velocidade relativa
+      vp.addScaledVector(n, -vp.dot(n));                   // só a tangencial
+      b.v.addScaledVector(vp, -ATRITO);
+    }
+  }
+  // Colisões bola-bola (no máximo 10 bolas por gaiola → 45 pares; barato)
+  for (let i = 0; i < bolas.length; i++) {
+    const a = bolas[i]; if (!a.livre) continue;
+    for (let j = i + 1; j < bolas.length; j++) {
+      const b = bolas[j]; if (!b.livre || b.gaiola !== a.gaiola) continue;
+      tmp.subVectors(b.p, a.p);
+      const d = tmp.length(), min = BALL_R * 2;
+      if (d > 0 && d < min) {
+        n.copy(tmp).divideScalar(d);
+        const corr = (min - d) / 2;
+        a.p.addScaledVector(n, -corr); b.p.addScaledVector(n, corr);
+        const rel = vp.subVectors(b.v, a.v).dot(n);
+        if (rel < 0) {
+          const imp = -(1 + REST) * rel / 2;
+          a.v.addScaledVector(n, -imp); b.v.addScaledVector(n, imp);
+        }
+      }
+    }
+  }
+}
+
+/* ===========================================================================
+ * ENQUADRAMENTO — distância de câmera para caber as 3 gaiolas
+ *   Campo de visão horizontal: hfov = 2·atan( tan(vfov/2) · aspecto )
+ *   Distância para meia-largura L:  d = L / tan(hfov/2)
+ *   No celular em pé (aspecto < 1) a câmera recua automaticamente.
+ * ========================================================================= */
+function enquadrar() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const meiaLarg = CAGE_X[2] + CAGE_R + 0.9;
+  const d = Math.max(9, meiaLarg / Math.tan(hfov / 2));
+  // Em retrato o painel ocupa a parte de baixo: sobe o alvo da câmera.
+  const alvoY = camera.aspect < 1 ? -0.9 : -0.2;
+  camera.position.set(0, 2.2 + d * 0.08, d);
+  camera.lookAt(0, CAGE_Y + alvoY, 0);
+  camera.updateProjectionMatrix();
+}
+
+function iniciar3D() {
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (e) { webglOk = false; }
+  if (!webglOk || !renderer.getContext()) {
+    webglOk = false;
+    $('palco').innerHTML = '<div class="semwebgl">Seu aparelho não suporta 3D.<br>O sorteio funciona normalmente pelo placar abaixo.</div>';
+    return;
+  }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  $('palco').appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x1d3b2a, 0.9));
+  const sol = new THREE.DirectionalLight(0xffffff, 0.9); sol.position.set(4, 8, 6); scene.add(sol);
+  const contra = new THREE.PointLight(0xffd36b, 0.6, 20); contra.position.set(0, 3, -4); scene.add(contra);
+
+  // Névoa linear: objetos distantes fundem com o fundo (profundidade)
+  scene.fog = new THREE.Fog(0x04190f, 14, 30);
+
+  // Mesa: tampo de feltro verde + borda de madeira
+  const tampo = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.1, 64),
+    new THREE.MeshStandardMaterial({ color: 0x0e5a37, roughness: 0.95 }));
+  tampo.scale.set(6.4, 1, 2.6); tampo.position.y = PISO_Y - 0.05; scene.add(tampo);
+  const borda = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 10, 96),
+    new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.6, metalness: 0.1 }));
+  borda.scale.set(6.4, 2.6, 1); borda.rotation.x = Math.PI / 2; borda.position.y = PISO_Y; scene.add(borda);
+  const saia = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.96, 1.2, 64, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x4a2a12, roughness: 0.8, side: THREE.DoubleSide }));
+  saia.scale.set(6.4, 1, 2.6); saia.position.y = PISO_Y - 0.7; scene.add(saia);
+
+  // Painel de fundo curvo (arco de cilindro visto por dentro) com a faixa
+  const painel = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 1.4, 64, 1, true, -0.62, 1.24),
+    new THREE.MeshBasicMaterial({ map: texturaFaixa(), side: THREE.BackSide, fog: false }));
+  painel.position.set(0, 4.6, 4); painel.rotation.y = Math.PI; scene.add(painel);
+
+  for (let i = 0; i < 3; i++) criarGaiola(i);
+  enquadrar();
+  addEventListener('resize', enquadrar);
+
+  let acum = 0, ultimo = performance.now();
+  renderer.setAnimationLoop((agora) => {
+    const dtReal = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
+    // Velocidade angular segue o alvo com resposta de 1ª ordem:
+    //   ω ← ω + (ω_alvo − ω)·(1 − e^(−dt/τ)),  τ ≈ 0,4 s (inércia do tambor)
+    for (const g of gaiolas) {
+      g.omega += (g.alvo - g.omega) * (1 - Math.exp(-dtReal / 0.4));
+      g.giro.rotation.x += g.omega * dtReal;
+      // Entorno: foco suave (mesma resposta de 1ª ordem, τ = 0,25 s)
+      g.foco += (g.focoAlvo - g.foco) * (1 - Math.exp(-dtReal / 0.25));
+      const pulso = 0.5 + 0.5 * Math.sin(agora / 180);
+      const f = Math.max(0, g.foco);
+      g.holofote.intensity = 2.2 * f;
+      g.aro.material.emissive.setHex(g.aro.material.color.getHex());
+      g.aro.material.emissiveIntensity = f * (0.35 + 0.45 * pulso);
+      g.giro.children[0].material.opacity = 0.55 - 0.3 * Math.max(0, -g.foco); // esmaece as fora de foco
+      g.podio.material.opacity += (g.podioAlvo - g.podio.material.opacity) * (1 - Math.exp(-dtReal / 0.2));
+      g.podio.rotation.z += dtReal * 1.5;
+    }
+    acum += dtReal;
+    while (acum >= DT) { passoFisica(DT); acum -= DT; }
+    for (const b of bolas) {
+      if (!b.livre) continue;
+      b.mesh.position.copy(b.p);
+      // Rolagem visual: ângulo = deslocamento / raio
+      b.mesh.rotation.x += (b.v.z / BALL_R) * dtReal;
+      b.mesh.rotation.z -= (b.v.x / BALL_R) * dtReal;
+    }
+    renderer.render(scene, camera);
+  });
+}
+
+// Anima a bola sorteada saindo da gaiola até ficar acima dela, de frente.
+function extrairBola(gaiolaIdx, digito) {
+  return new Promise((resolve) => {
+    if (!webglOk) return resolve();
+    const b = bolas.find((x) => x.gaiola === gaiolaIdx && x.digito === digito);
+    if (!b) return resolve();                          // defensivo: dígito sem bola
+    b.livre = false;
+    const ini = b.mesh.position.clone();
+    const fim = new THREE.Vector3(CAGE_X[gaiolaIdx], CAGE_Y + CAGE_R + 0.75, 0.6);
+    const qIni = b.mesh.quaternion.clone(), qFim = new THREE.Quaternion();
+    const dur = 900 * T, t0 = performance.now();
+    (function quadro(agora) {
+      const k = Math.min(1, (agora - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);                    // easeOutCubic
+      b.mesh.position.lerpVectors(ini, fim, e);
+      b.mesh.position.y += Math.sin(Math.PI * k) * 0.6;    // arco de subida
+      b.mesh.quaternion.copy(qIni).slerp(qFim, e);         // dígito vira para a câmera
+      b.mesh.scale.setScalar(1 + 1.4 * e);
+      if (k < 1) requestAnimationFrame(quadro); else resolve();
+    })(performance.now());
+  });
+}
+
+/* ===========================================================================
+ * CONFETE (canvas 2D simples)
+ * ========================================================================= */
+function confete() {
+  if (REDUZIR) return;
+  const cv = $('confete'), g = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight;
+  const cores = ['#C8102E', '#00a35f', '#f2b705', '#ffffff'];
+  const p = Array.from({ length: 160 }, () => ({
+    x: cv.width / 2, y: cv.height * 0.45, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 14 - 4,
+    s: 4 + Math.random() * 6, c: cores[(Math.random() * 4) | 0], a: Math.random() * 6.28, va: (Math.random() - 0.5) * 0.4,
+  }));
+  const t0 = performance.now();
+  (function quadro(agora) {
+    g.clearRect(0, 0, cv.width, cv.height);
+    for (const q of p) {
+      q.vy += 0.35; q.vx *= 0.99; q.x += q.vx; q.y += q.vy; q.a += q.va;
+      g.save(); g.translate(q.x, q.y); g.rotate(q.a); g.fillStyle = q.c; g.fillRect(-q.s / 2, -q.s / 4, q.s, q.s / 2); g.restore();
+    }
+    if (agora - t0 < 3500) requestAnimationFrame(quadro); else g.clearRect(0, 0, cv.width, cv.height);
+  })(t0);
+}
+
+/* ===========================================================================
+ * CARTELA — consulta se o número foi vendido (falha de forma silenciosa)
+ * ========================================================================= */
+async function consultarCartela() {
+  try {
+    const r = await fetch(API_NUM, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d.total) { TOTAL = d.total; $('totalTxt').textContent = pad(TOTAL); }
+    return d.sold || {};
+  } catch { return null; }
+}
+
+/* ===========================================================================
+ * FLUXO DO SORTEIO
+ * ========================================================================= */
+let sorteando = false;
+const historico = [];
+
+function limparPlacar() {
+  for (let i = 0; i < 3; i++) { const d = $('d' + i); d.textContent = '–'; d.className = 'digito vazio'; }
+  $('resultado').textContent = '';
+  $('destaque').classList.remove('on');
+}
+
+async function sortear() {
+  if (sorteando) return;
+  sorteando = true;
+  const btn = $('btnSortear'); btn.disabled = true;
+  limparPlacar();
+  // Devolve às gaiolas as bolas extraídas no sorteio anterior.
+  bolas.forEach((b) => { if (!b.livre) reposicionar(b); });
+  gaiolas.forEach((g) => (g.podioAlvo = 0));
+
+  const cartelaP = consultarCartela();               // em paralelo à animação
+  const numero = sortearNumero(TOTAL);
+  const digs = pad(numero).split('').map(Number);     // [centena, dezena, unidade]
+
+  $('status').textContent = 'Girando as gaiolas…';
+  gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
+  await espera(2400);
+
+  for (let i = 0; i < 3; i++) {
+    $('status').textContent = `Sorteando a ${ROTULOS[i].toLowerCase()}…`;
+    focarGaiola(i);                                   // entorno: holofote nesta gaiola
+    gaiolas[i].alvo = 0;                              // freia só esta gaiola
+    await espera(900);
+    if (gaiolas[i]) gaiolas[i].podioAlvo = 0.9;
+    await extrairBola(i, digs[i]);
+    const d = $('d' + i);
+    d.textContent = digs[i]; d.className = 'digito pop';
+    somRevela(i);
+    await espera(450);
+  }
+  gaiolas.forEach((g) => (g.alvo = 0));
+  focarGaiola(null);
+
+  const vendidos = await cartelaP;
+  const txt = pad(numero);
+  $('destaque').textContent = txt;
+  $('destaque').classList.add('on');
+  somFinal(); confete();
+  setTimeout(() => $('destaque').classList.remove('on'), 2600 * T + 400);
+
+  let situacao;
+  if (vendidos === null) situacao = 'cartela indisponível no momento';
+  else if (vendidos[numero]) situacao = `vendido para <strong></strong>`;
+  else situacao = 'número <em>não vendido</em>';
+  const res = $('resultado');
+  res.innerHTML = `Número sorteado: <strong>${txt}</strong> — ${situacao}`;
+  if (vendidos && vendidos[numero]) res.querySelectorAll('strong')[1].textContent = vendidos[numero].name;
+  $('status').textContent = 'Sorteio concluído';
+
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  historico.unshift(`${txt} • ${hora}` + (vendidos && vendidos[numero] ? ` • ${vendidos[numero].name}` : ''));
+  const lista = $('listaHist'); lista.replaceChildren(...historico.slice(0, 30).map((h) => {
+    const li = document.createElement('li'); li.textContent = h; return li;
+  }));
+
+  btn.textContent = 'Sortear novamente';
+  btn.disabled = false;
+  sorteando = false;
+}
+
+/* ===========================================================================
+ * CONTROLES
+ * ========================================================================= */
+$('btnSortear').addEventListener('click', sortear);
+addEventListener('keydown', (e) => {
+  if ((e.code === 'Space' || e.key === 'Enter') && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+    e.preventDefault(); sortear();
+  }
+});
+$('btnSom').addEventListener('click', (e) => {
+  somLigado = !somLigado;
+  e.currentTarget.textContent = somLigado ? '🔊' : '🔇';
+  e.currentTarget.setAttribute('aria-pressed', String(somLigado));
+  e.currentTarget.setAttribute('aria-label', somLigado ? 'Desligar som' : 'Ligar som');
+});
+$('btnHist').addEventListener('click', () => { const h = $('historico'); h.hidden = !h.hidden; });
+$('btnTela').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  else document.exitFullscreen?.();
+});
+
+iniciar3D();
+consultarCartela();
+</script>
+</body>
+</html>
