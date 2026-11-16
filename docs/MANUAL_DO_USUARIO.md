@@ -1,6 +1,6 @@
 # Manual do Usuário — Rifa Solidária Chico da Baixa
 
-- **Autor:** Jossian Brito · **Versão:** 2.8.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
+- **Autor:** Jossian Brito · **Versão:** 2.9.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
 
 ## Para quem vai comprar
 1. Abra o site e role até a cartela (números **001 a 199**).
@@ -33,6 +33,7 @@ Os contadores no topo mostram em tempo real: disponíveis, comprados, pessoas on
   está misturando e não muda a chance de nenhum número. A quantidade de auditorias aparece
   abaixo do resultado.
 - Cores: Centena azul (0 e 1), Dezena verde (0–9), Unidade amarela (0–9).
+- **Som:** toque em "🔊 Toque para ativar voz e música" (o celular só toca som após um toque). Trilha gospel durante o giro; vozes anunciam abertura, auditoria, centena, dezena, unidade e o agradecimento.
 - Ícones no topo: 🔊 som · ⛶ tela cheia · ↩ voltar.
 - **Modo teste** (organização): abra `/sorteio.html?teste=1` para ver o histórico 🕘 da sessão e a dica de atalho (Espaço/Enter).
 

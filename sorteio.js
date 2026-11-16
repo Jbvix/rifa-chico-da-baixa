@@ -2,8 +2,15 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 2.7.0
+ * Versão   : 2.9.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v2.9.0 (2026-11-16 12:50 BRT): VOZES E TRILHA GRAVADAS
+ *   - Vozes ElevenLabs: Jossian Brito (voz clonada) na abertura e no
+ *     agradecimento; Carla (institucional) em auditoria/centena/dezena/unidade.
+ *   - Trilha gospel instrumental nova (ElevenLabs Music, 120 s, em loop)
+ *     durante o giro; abaixa sozinha sob as falas ("ducking").
+ *   - Áudio carregado com fetch + WebAudio (a CSP bloqueia <audio>), só depois
+ *     do toque em "Ativar som" (exigência dos navegadores de celular).
  * MODIFICAÇÕES v2.6.0: script movido para arquivo próprio — a política de
  *   segurança do site (CSP script-src 'self') bloqueia scripts embutidos.
  *   Three.js r128 hospedado no próprio site (/vendor), pelo mesmo motivo.
@@ -73,6 +80,89 @@ function tom(freq, dur = 0.12, tipo = 'sine', vol = 0.15, atraso = 0) {
 const somClique = () => tom(900 + Math.random() * 500, 0.03, 'square', 0.025);
 const somRevela = (i) => { tom(523 + i * 130, 0.18, 'triangle', 0.2); tom(784 + i * 130, 0.22, 'sine', 0.12, 0.08); };
 const somFinal = () => [523, 659, 784, 1047].forEach((f, i) => tom(f, 0.35, 'triangle', 0.18, i * 0.12));
+
+/* ===========================================================================
+ * ÁUDIO GRAVADO (v2.9.0) — vozes + trilha
+ *   Cadeia de sinal (WebAudio):  fonte → ganho → saída
+ *   Ducking da trilha durante uma fala de duração d (s):
+ *     ganho(t) → 0,08 com constante de tempo 0,15 s (abaixa rápido)
+ *     e volta a VOL_TRILHA a partir de t+d com constante 0,4 s (sobe suave).
+ *   Resposta exponencial de 1ª ordem: g(t) = g∞ + (g0 − g∞)·e^(−t/τ),
+ *   igual ao ω das gaiolas — sem "degraus" audíveis.
+ *   Uma fala nova interrompe a anterior (prioridade ao anúncio mais recente).
+ * ========================================================================= */
+const AUDIO_DIR = '/audio/sorteio/';
+const FAIXAS = ['voz-abertura', 'voz-auditoria', 'voz-centena', 'voz-dezena', 'voz-unidade', 'voz-agradecimento', 'trilha-gospel'];
+const VOL_TRILHA = 0.28;
+const buffers = {};
+let audioLiberado = false, carregando = null, trilhaNode = null, trilhaGain = null, vozAtual = null;
+const ctxAudio = () => (actx = actx || new (window.AudioContext || window.webkitAudioContext)());
+
+function carregarAudios() {
+  carregando = carregando || Promise.all(FAIXAS.map(async (n) => {
+    try {
+      const r = await fetch(AUDIO_DIR + n + '.mp3');
+      buffers[n] = await ctxAudio().decodeAudioData(await r.arrayBuffer());
+    } catch (e) { console.warn('áudio indisponível:', n); }
+  }));
+  return carregando;
+}
+
+function abaixarTrilha(seg) {
+  if (!trilhaGain) return;
+  const t = actx.currentTime;
+  trilhaGain.gain.cancelScheduledValues(t);
+  trilhaGain.gain.setTargetAtTime(0.08, t, 0.15);
+  trilhaGain.gain.setTargetAtTime(VOL_TRILHA, t + seg, 0.4);
+}
+
+function falar(nome) {
+  if (!somLigado || !audioLiberado || !buffers[nome]) return;
+  try { vozAtual && vozAtual.stop(); } catch {}
+  const c = ctxAudio(), s = c.createBufferSource();
+  s.buffer = buffers[nome];
+  s.connect(c.destination);
+  s.start();
+  vozAtual = s;
+  s.onended = () => { if (vozAtual === s) vozAtual = null; };
+  abaixarTrilha(s.buffer.duration);
+}
+
+function iniciarTrilha() {
+  if (trilhaNode || !somLigado || !audioLiberado || !buffers['trilha-gospel']) return;
+  const c = ctxAudio();
+  trilhaGain = c.createGain();
+  trilhaGain.gain.value = 0;
+  trilhaGain.gain.setTargetAtTime(VOL_TRILHA, c.currentTime, 1.0);   // entra em ~3 s
+  trilhaNode = c.createBufferSource();
+  trilhaNode.buffer = buffers['trilha-gospel'];
+  trilhaNode.loop = true;
+  trilhaNode.connect(trilhaGain).connect(c.destination);
+  trilhaNode.start();
+}
+
+function pararTrilha(fadeSeg = 4) {
+  if (!trilhaNode) return;
+  const n = trilhaNode, g = trilhaGain;
+  trilhaNode = null; trilhaGain = null;
+  g.gain.cancelScheduledValues(actx.currentTime);
+  g.gain.setTargetAtTime(0, actx.currentTime, fadeSeg / 3);
+  setTimeout(() => { try { n.stop(); } catch {} }, fadeSeg * 1000 + 200);
+}
+
+// Trilha deve tocar enquanto as gaiolas giram (entre o início e o resultado).
+let trilhaDesejada = false;
+function querTrilha(v) { trilhaDesejada = v; if (v) iniciarTrilha(); else pararTrilha(); }
+
+async function ativarSom() {
+  const c = ctxAudio();
+  try { await c.resume(); } catch {}
+  audioLiberado = true;
+  $('ativarSom').hidden = true;
+  $('ativarSom').textContent = '⏳ Carregando sons…';
+  await carregarAudios();
+  if (trilhaDesejada) iniciarTrilha();
+}
 
 /* ===========================================================================
  * CENA 3D (Three.js r128)
@@ -678,6 +768,7 @@ async function animarGaiola(i, g, Ti, ciclo) {
     if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
     await ate(Ca + 900);
     extrairBola(i, AUDITORIA);
+    falar('voz-auditoria');
     await ate(Ca + 1800);
     mostrarAuditoria(i, true);
     await ate(Ca + 2800);
@@ -689,6 +780,7 @@ async function animarGaiola(i, g, Ti, ciclo) {
     await ate(Ca + C);
   }
   if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
+  falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);
   await ate(Ti - 900);
   extrairBola(i, g.digito, Math.max(100, Ti - agoraSync()));
   await ate(Ti);
@@ -726,6 +818,8 @@ function atualizarRelogio() {
     girando = true;
     gaiolas.forEach((g, i) => { if (!gaiolaFeita[i]) g.alvo = 7 + i * 0.6; });
     $('status').textContent = '🔴 AO VIVO — gaiolas girando';
+    querTrilha(true);
+    if (agora - ag.inicio < 15000) falar('voz-abertura');   // só para quem está assistindo no início
   }
   $('relogio').textContent = prox ? `${prox[1]} ${fmtFalta(prox[0] - agora)}` : '';
 }
@@ -752,6 +846,11 @@ async function cicloOficial() {
     focarGaiola(null);
     const aud = dados.gaiolas.map((g) => (g ? g.auditorias : 0));
     mostrarFinal(dados.numero, dados.ganhador, aud, !jaPassou);
+    if (!jaPassou) {
+      // Agradecimento (voz do Jossian) só quando há ganhador; trilha sai em fade.
+      if (dados.ganhador) setTimeout(() => falar('voz-agradecimento'), 3500);
+      setTimeout(() => querTrilha(false), dados.ganhador ? 9000 : 5000);
+    } else querTrilha(false);
     $('status').textContent = 'Sorteio concluído';
     $('relogio').textContent = `Resultado oficial de ${fmtData(ag.fim)}`;
     return;                                             // fim do ciclo
@@ -780,6 +879,7 @@ async function sortearTeste() {
   const numero = sortearNumero(TOTAL);
   const digs = pad(numero).split('').map(Number);
   $('status').textContent = 'TESTE — girando as gaiolas…';
+  querTrilha(true); falar('voz-abertura');
   gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
   await espera(2400);
   const auditorias = [0, 0, 0];
@@ -791,6 +891,7 @@ async function sortearTeste() {
     const k = i === 0 ? 2 : 10;
     while (auditorias[i] < 6 && sortearNumero(k + 1) === k + 1) {   // ver regra em sorteio-core.js
       auditorias[i]++;
+      falar('voz-auditoria');
       await extrairBola(i, AUDITORIA);
       mostrarAuditoria(i, true);
       await espera(1300);
@@ -801,6 +902,7 @@ async function sortearTeste() {
       gaiolas[i].alvo = 0; await espera(900);
       gaiolas[i].podioAlvo = 0.9;
     }
+    falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);
     await extrairBola(i, digs[i]);
     mostrarDigito(i, digs[i]);
     await espera(450);
@@ -810,6 +912,8 @@ async function sortearTeste() {
   const ganhador = vend === null ? undefined : (vend[numero] ? { nome: vend[numero].name } : null);
   mostrarFinal(numero, ganhador, auditorias);
   $('status').textContent = 'TESTE concluído (não oficial)';
+  if (ganhador) setTimeout(() => falar('voz-agradecimento'), 3500);
+  setTimeout(() => querTrilha(false), ganhador ? 9000 : 5000);
   btn.textContent = 'Sortear novamente (teste)';
   btn.disabled = false;
   sorteando = false;
@@ -826,6 +930,8 @@ addEventListener('keydown', (e) => {
 });
 $('btnSom').addEventListener('click', (e) => {
   somLigado = !somLigado;
+  if (!somLigado) { try { vozAtual && vozAtual.stop(); } catch {} pararTrilha(1); }
+  else { if (!audioLiberado) ativarSom(); else if (trilhaDesejada) iniciarTrilha(); }
   e.currentTarget.textContent = somLigado ? '🔊' : '🔇';
   e.currentTarget.setAttribute('aria-pressed', String(somLigado));
   e.currentTarget.setAttribute('aria-label', somLigado ? 'Desligar som' : 'Ligar som');
@@ -835,6 +941,8 @@ $('btnTela').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   else document.exitFullscreen?.();
 });
+
+$('ativarSom').addEventListener('click', ativarSom);
 
 iniciar3D();
 if (MODO_TESTE && !MODO_ENSAIO) {

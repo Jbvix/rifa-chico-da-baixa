@@ -4,7 +4,7 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 2.7.0
+ Versão   : 2.9.0
  Data/Hora: 2026-11-16 11:30 (BRT, UTC-3)
 
  MODIFICAÇÕES v2.7.0 (2026-11-16) — SMARTPHONE
@@ -172,6 +172,8 @@
   .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #a87c00; }
   .btn:disabled { filter: grayscale(.8) brightness(.8); cursor: wait; }
   .dica { font-size: .72rem; opacity: .6; margin-top: 6px; }
+  .btn-som { margin: 0 0 10px; padding: 10px; font-size: 1rem; background: linear-gradient(180deg, #4fd1a5, #1f9e74); color: #04261a; box-shadow: 0 3px 0 #136b4e; }
+  .btn-som[hidden] { display: none; }
 
   /* Histórico */
   .historico {
@@ -243,6 +245,8 @@
 </aside>
 
 <section class="painel" aria-label="Painel do sorteio">
+  <!-- v2.9.0: navegadores de celular só tocam som após um toque do usuário -->
+  <button class="btn btn-som" id="ativarSom">🔊 Toque para ativar voz e música</button>
   <div class="status" id="status" aria-live="polite">Conectando ao sorteio oficial…</div>
   <div class="placar" aria-hidden="true">
     <div class="casa"><div class="digito vazio" id="d0">–</div><span>Centena</span></div>
