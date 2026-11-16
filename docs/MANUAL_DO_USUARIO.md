@@ -1,6 +1,6 @@
 # Manual do Usuário — Rifa Solidária Chico da Baixa
 
-- **Autor:** Jossian Brito · **Versão:** 3.8.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
+- **Autor:** Jossian Brito · **Versão:** 3.9.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
 
 ## Para quem vai comprar
 1. Abra o site e role até a cartela (números **001 a 199**).
@@ -47,6 +47,8 @@ Os contadores no topo mostram em tempo real: disponíveis, comprados, pessoas on
 - **Lembrete na agenda:** botão "📅 Me lembrar do sorteio" (página principal, regras e gaiola).
 - **Painel de vendas ao vivo:** abra o link pessoal recebido, toque em "🔔 Ativar alertas" e deixe a
   página aberta. Somente leitura; "pagamento informado" precisa ser conferido no extrato.
+- **Conferência do Pix (link de administração):** depois de ver o Pix de R$ 20 no extrato, toque em
+  "✅ Confirmar Pix recebido" no número. Se errar, "↩️ Desfazer". O link é pessoal e não deve ser compartilhado.
 - **Kit WhatsApp:** arquivo entregue em separado (contém telefones; não publicar).
 - **Ensaio geral**: abra `/sorteio.html?ensaio=1` — o roteiro oficial completo começa em 5 s (resultado não oficial).
 - **E-mail**: configure as variáveis descritas no README e envie um teste antes do dia

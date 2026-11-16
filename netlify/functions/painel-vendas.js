@@ -2,7 +2,7 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : netlify/functions/painel-vendas.js  (painel SOMENTE LEITURA)
  * Autor    : Jossian Brito
- * Versão   : 3.7.0
+ * Versão   : 3.9.0
  * Data/Hora: 2026-11-16 16:40 (BRT, UTC-3)
  *
  * O QUE FAZ
@@ -19,12 +19,16 @@
  *     de ambiente PAINEL_VENDAS_SHA256) e publicar.
  *   - Resposta sem cache (no-store).
  *
+ * MODIFICAÇÕES v3.9.0 (2026-11-16)
+ *   - Mostra "confirmado" para números com Pix conferido (store separado
+ *     "rifa-conferencia", mesma regra de validade da página de administração).
  * MODIFICAÇÕES v3.7.0 (2026-11-16)
  *   - [NOVO] Arquivo criado (painel em tempo real para a Maria José).
  * ========================================================================== */
 import { getStore } from "@netlify/blobs";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { json } from "../lib/rifa-config.js";
+import { conferenciaValida } from "../lib/conferencia.js";
 
 const CHAVE_SHA256 = "32c518327c8f7cf83b1bbc11f3d5c0994e8050b0debff06ad81ebfb900bd61f9";
 
@@ -43,6 +47,7 @@ export default async (req) => {
   const estado = (await getStore({ name: "rifa-state-v2", consistency: "strong" })
     .get("state-v2", { type: "json" })) || {};
   const agora = Date.now();
+  const conf = (await getStore({ name: "rifa-conferencia", consistency: "strong" }).get("conferidos", { type: "json" })) || { itens: {} };
 
   // Horários a partir do histórico (audit): reserva criada / pagamento informado.
   const ev = {};
@@ -56,7 +61,7 @@ export default async (req) => {
   const itens = Object.entries(estado.tickets || {}).map(([numero, t]) => {
     const e = ev[numero] || {};
     let situacao, ordem;
-    if (t.payment === "verified") { situacao = "confirmado"; ordem = 0; }
+    if (t.payment === "verified" || conferenciaValida(conf.itens?.[numero], t)) { situacao = "confirmado"; ordem = 0; }
     else if (t.payment === "declared") { situacao = "pagamento_informado"; ordem = 1; }
     else if (e.expiraEm && e.expiraEm > agora) { situacao = "reserva_ativa"; ordem = 2; }
     else { situacao = "reserva_expirada"; ordem = 3; }

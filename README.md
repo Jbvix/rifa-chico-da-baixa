@@ -128,6 +128,14 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
   (ou definir `PAINEL_VENDAS_SHA256` no Netlify) e publicar.
 - Alertas (com a página aberta): som, vibração e notificação via `vendas-sw.js`.
 
+## Conferência do Pix (v3.9.0)
+
+- Página `/confirmar.html` + função `confirmar-pagamento`, acesso por link com chave de
+  administração (diferente da chave do painel de leitura; só o SHA-256 no código).
+- Grava em `rifa-conferencia/conferidos` ({ versao, itens: { "007": { reservationId, conferidoEm } }, historico }).
+  O `rifa-state-v2` é apenas lido (código-fonte da função de reservas indisponível).
+- Validade: a conferência só vale com o mesmo `reservationId` e pagamento informado.
+
 ## Administração
 
 - `RIFA_ADMIN_TOKEN` (variável de ambiente no Netlify): habilita `POST {action:"clear"}`
@@ -137,6 +145,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.9.0 | 2026-11-16 | **Publicado.** Link de administração `/confirmar.html` para conferir o Pix ("✅ Confirmar Pix recebido" / "↩️ Desfazer"); gravado em store separado `rifa-conferencia` — estado das reservas intocado |
 | 3.8.0 | 2026-11-16 | **Publicado.** Botões de compartilhar: "📤 Compartilhar a rifa" (topo), "📤 Convidar amigos" (após a compra) e 📤 na gaiola — folha nativa do celular, alternativa WhatsApp/copiar link |
 | 3.7.0 | 2026-11-16 | **Publicado.** Painel de vendas ao vivo (`/vendas.html`, somente leitura, link com chave; servidor guarda só o SHA-256), alertas com som/vibração/notificação |
 | 3.6.0 | 2026-11-16 | **Publicado.** Botão "📅 Me lembrar do sorteio" (`/sorteio-rifa.ics` + Google Agenda; alarmes na véspera e 10 min antes) |

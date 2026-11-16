@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+=============================================================================
+ Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
+ Arquivo  : confirmar.html (ADMIN — conferência do Pix)
+ Autor    : Jossian Brito
+ Versão   : 3.9.0
+ Data/Hora: 2026-11-16 18:00 (BRT, UTC-3)
+ Acesso   : somente pelo link com chave de administração (#k=…). Não indexado.
+ MODIFICAÇÕES v3.9.0: arquivo criado.
+=============================================================================
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Conferência do Pix · Rifa Chico da Baixa</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui,-apple-system,sans-serif; background:#f3f6f4; color:#1d2a24; }
+  header { background:linear-gradient(135deg,#7a4b00,#4d2f00); color:#fff; padding:16px; position:sticky; top:0; z-index:5; }
+  header h1 { margin:0; font-size:1.15rem; } header small { opacity:.85; }
+  main { max-width:720px; margin:0 auto; padding:12px 12px 40px; }
+  .aviso { background:#fff8e1; border-left:4px solid #f9a825; padding:10px 12px; border-radius:10px; font-size:.9rem; margin:10px 0; }
+  .erro { background:#fdecea; border-left-color:#C8102E; color:#8a1020; font-weight:600; }
+  .ok { background:#e6f6ec; border-left-color:#1f9e5a; color:#0d5c32; font-weight:600; }
+  .item { background:#fff; border-radius:12px; padding:12px; margin:8px 0; box-shadow:0 1px 4px rgba(0,0,0,.06); border-left:6px solid #9aa; }
+  .s-declared { border-left-color:#f2b705; } .s-verified { border-left-color:#1f9e5a; }
+  .topo { display:flex; align-items:baseline; gap:10px; } .num { font-size:1.5rem; font-weight:800; }
+  .nome { font-weight:700; } .det { font-size:.82rem; color:#56675e; margin:2px 0 8px; }
+  button { font:inherit; font-weight:700; border:0; border-radius:10px; padding:12px; cursor:pointer; width:100%; }
+  .confirmar { background:#1f9e5a; color:#fff; font-size:1.05rem; }
+  .desfazer { background:#fff; color:#7a4b00; border:2px solid #c9a76b; padding:8px; font-size:.9rem; }
+  .atualizar { background:#7a4b00; color:#fff; width:auto; padding:10px 16px; }
+  button:disabled { opacity:.5; cursor:wait; }
+  h2 { font-size:1rem; margin:20px 0 4px; color:#33463c; }
+</style>
+</head>
+<body>
+<header><h1>✅ Conferência do Pix · Rifa do Chico da Baixa</h1><small id="atualizado">Carregando…</small></header>
+<main>
+  <div class="aviso">🔐 <b>Link de administração — não compartilhe.</b> Confirme um número <b>somente depois de ver o Pix de R$ 20,00 no extrato do Nubank</b> da Sra. Maria Lúcia. Se errar, use "Desfazer".</div>
+  <div id="msg" class="aviso" hidden></div>
+  <button class="atualizar" id="btnAtualizar">🔄 Atualizar</button>
+  <h2>🟡 Aguardando conferência (pagamento informado)</h2><div id="lDeclarados"></div>
+  <h2>🟢 Pix conferido</h2><div id="lVerificados"></div>
+  <h2>🕒 Reservas ativas (ainda sem "Já paguei")</h2><div id="lReservas"></div>
+</main>
+<script type="module" src="/confirmar.mjs"></script>
+</body>
+</html>
