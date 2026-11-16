@@ -2,8 +2,14 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.2.0
+ * Versão   : 3.3.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.3.0 (2026-11-16 14:50 BRT): SOM DAS BOLAS BATENDO
+ *   - Novo estalo de bola plástica (ruído curto + filtro passa-faixa) em TODOS
+ *     os choques: bola-bola, bola-parede e bola-pino; também com a gaiola
+ *     parada (a mistura por inércia agora é audível) e na chegada ao copo.
+ *   - Volume ∝ energia do choque (v²), estéreo por gaiola, até ~80 estalos/s.
+ *   - Antes: só parede/pino, ω > 1 e volume 0,025 (inaudível sob a trilha).
  * MODIFICAÇÕES v3.2.0 (2026-11-16 14:30 BRT): MÚSICA ATÉ O SORTEIO + DEMONSTRAÇÃO
  *   - A trilha gospel toca (em loop) desde o toque em "ativar som" até o
  *     resultado oficial — não só a partir das 09:55.
@@ -111,7 +117,39 @@ function tom(freq, dur = 0.12, tipo = 'sine', vol = 0.15, atraso = 0) {
     o.start(t0); o.stop(t0 + dur);
   } catch (e) {}
 }
-const somClique = () => tom(900 + Math.random() * 500, 0.03, 'square', 0.025);
+/* ---------------------------------------------------------------------------
+ * ESTALO DE BOLA (v3.3.0)
+ *   Fonte: rajada de ruído branco com decaimento exponencial
+ *     x[n] = ruído[n] · e^(−n / (fs·τ)),   τ = 4 ms   (choque seco, curto)
+ *   Filtro passa-faixa 2,2–4 kHz, Q = 3: timbre de esfera plástica oca.
+ *   Volume ∝ energia cinética do choque:  g = min(0,45 ; 0,05·v²)
+ *     v = 1 m/s → 0,05 (leve) ; v = 3 m/s → 0,45 (forte, limitado).
+ *   Pan estéreo por gaiola: centena −0,7 ; dezena 0 ; unidade +0,7.
+ *   Limite: ≥ 12 ms entre estalos (≤ ~80/s) para não sobrecarregar o celular.
+ *   Analogia: é o "batido" das ondas no costado — cada impacto tem a força
+ *   do quadrado da velocidade relativa.
+ * ------------------------------------------------------------------------- */
+let ruidoImpacto = null, ultimoEstalo = 0;
+function somImpacto(vel, gaiolaIdx = 1) {
+  if (!somLigado || !audioLiberado || !actx || actx.state !== 'running') return;
+  const c = actx, t = c.currentTime;
+  if (t - ultimoEstalo < 0.012) return;
+  const g0 = Math.min(0.45, 0.05 * vel * vel);
+  if (g0 < 0.01) return;
+  ultimoEstalo = t;
+  if (!ruidoImpacto) {
+    const n = Math.floor(c.sampleRate * 0.05), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (c.sampleRate * 0.004));
+    ruidoImpacto = buf;
+  }
+  const src = c.createBufferSource(); src.buffer = ruidoImpacto; src.playbackRate.value = 0.8 + Math.random() * 0.5;
+  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200 + Math.random() * 1800; bp.Q.value = 3;
+  const g = c.createGain(); g.gain.value = g0;
+  src.connect(bp).connect(g);
+  if (c.createStereoPanner) { const pan = c.createStereoPanner(); pan.pan.value = [-0.7, 0, 0.7][gaiolaIdx] ?? 0; g.connect(pan).connect(c.destination); }
+  else g.connect(c.destination);
+  src.start(t);
+}
 const somRevela = (i) => { tom(523 + i * 130, 0.18, 'triangle', 0.2); tom(784 + i * 130, 0.22, 'sine', 0.12, 0.08); };
 const somFinal = () => [523, 659, 784, 1047].forEach((f, i) => tom(f, 0.35, 'triangle', 0.18, i * 0.12));
 
@@ -470,7 +508,7 @@ function passoFisica(dt) {
       const vn = b.v.dot(n);
       if (vn > 0) {
         b.v.addScaledVector(n, -(1 + REST) * vn);
-        if (Math.abs(gai.omega) > 1 && vn > 1.2) somClique();
+        if (vn > 0.6) somImpacto(vn, b.gaiola);                 // bola × parede
       }
       vp.set(0, -gai.omega * tmp.z, gai.omega * tmp.y);   // ω × r
       vp.subVectors(b.v, vp);                              // velocidade relativa
@@ -489,7 +527,7 @@ function passoFisica(dt) {
         const rel = b.v.clone().sub(vp), vn = rel.dot(n);
         if (vn < 0) {
           b.v.addScaledVector(n, -(1 + REST_PINO) * vn);
-          if (Math.abs(gai.omega) > 1 && vn < -1.2) somClique();
+          if (vn < -0.6) somImpacto(-vn, b.gaiola);              // bola × pino
         }
         rel.copy(b.v).sub(vp); rel.addScaledVector(n, -rel.dot(n));   // tangencial
         b.v.addScaledVector(rel, -ATRITO);
@@ -509,6 +547,7 @@ function passoFisica(dt) {
         a.p.addScaledVector(n, -corr); b.p.addScaledVector(n, corr);
         const rel = vp.subVectors(b.v, a.v).dot(n);
         if (rel < 0) {
+          if (rel < -0.5) somImpacto(-rel, a.gaiola);          // bola × bola
           const imp = -(1 + REST) * rel / 2;
           a.v.addScaledVector(n, -imp); b.v.addScaledVector(n, imp);
         }
@@ -699,7 +738,7 @@ function passoTubo(dt) {
     e.v += ((5 / 7) * -G * -TAN.y - C_ROL * e.v) * dt;   // −TAN.y = sen θ (descida)
     e.v = Math.max(e.v, 0.15);                          // não volta para dentro da gaiola
     e.s += e.v * dt;
-    if (e.s >= g.comprimento) { e.s = g.comprimento; e.chegou = true; e.tc = 0; e.resolver(); }
+    if (e.s >= g.comprimento) { e.s = g.comprimento; e.chegou = true; e.tc = 0; somImpacto(Math.max(2, e.v), b.gaiola); e.resolver(); }
     g.caminho.getPointAt(Math.min(1, e.s / g.comprimento), e.pos).add(g.grupo.position);
     // rolagem: eixo = tangente × vertical ; ângulo = ds / r
     EIXO.crossVectors(TAN, CIMA).normalize();
