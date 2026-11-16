@@ -1,0 +1,28 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Rifa Solidaria Chico da Baixa//Jossian Brito//PT-BR
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:sorteio-rifa-chico-da-baixa-20261223@rifa-chico-da-baixa.netlify.app
+DTSTAMP:20261116T190000Z
+DTSTART:20261223T125000Z
+DTEND:20261223T130500Z
+SUMMARY:🎱 Sorteio da Rifa Solidária – Chico da Baixa
+DESCRIPTION:As gaiolas começam a girar às 9h50 e o resultado sai às 10h 
+ (horário de Brasília).\nAssista ao vivo e toque em "ativar voz e música
+ ": https://rifa-chico-da-baixa.netlify.app/sorteio.html
+LOCATION:https://rifa-chico-da-baixa.netlify.app/sorteio.html
+URL:https://rifa-chico-da-baixa.netlify.app/sorteio.html
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT10M
+DESCRIPTION:O sorteio da rifa começa em 10 minutos!
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-P1D
+DESCRIPTION:Amanhã é o sorteio da Rifa Solidária do Chico da Baixa!
+END:VALARM
+END:VEVENT
+END:VCALENDAR

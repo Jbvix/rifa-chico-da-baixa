@@ -120,6 +120,14 @@ O valor do Pix é creditado **diretamente** na conta da Sra. Maria Lúcia.
 
 Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-email"}` e header `x-admin-token`.
 
+## Painel de vendas ao vivo (v3.7.0)
+
+- Página `/vendas.html` + função `painel-vendas` (somente leitura do `rifa-state-v2`).
+- Acesso pelo link `…/vendas.html#k=<chave>`; a chave **não** está no repositório — só seu SHA-256
+  em `netlify/functions/painel-vendas.js`. Para **revogar**: gerar nova chave, trocar o resumo
+  (ou definir `PAINEL_VENDAS_SHA256` no Netlify) e publicar.
+- Alertas (com a página aberta): som, vibração e notificação via `vendas-sw.js`.
+
 ## Administração
 
 - `RIFA_ADMIN_TOKEN` (variável de ambiente no Netlify): habilita `POST {action:"clear"}`
@@ -129,6 +137,8 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.7.0 | 2026-11-16 | **Publicado.** Painel de vendas ao vivo (`/vendas.html`, somente leitura, link com chave; servidor guarda só o SHA-256), alertas com som/vibração/notificação |
+| 3.6.0 | 2026-11-16 | **Publicado.** Botão "📅 Me lembrar do sorteio" (`/sorteio-rifa.ics` + Google Agenda; alarmes na véspera e 10 min antes) |
 | 3.5.0 | 2026-11-16 | **Publicado.** Física em escala real (g = 98 un/s², 1 un ≈ 0,1 m), colisão bola-bola com 3 iterações e atrito, 4 aletas, ω = 9 rad/s; giro oficial a partir das **09:50** |
 | 3.4.0 | 2026-11-16 | **Publicado.** Demonstração/teste com quedas aos 30 s (centena), 40 s (dezena) e 50 s (unidade), auditorias antes de cada queda, contagem no painel |
 | 3.3.0 | 2026-11-16 | **Publicado.** Som das bolas batendo: estalo plástico em bola-bola, parede, pinos e copo; volume ∝ v², estéreo por gaiola |

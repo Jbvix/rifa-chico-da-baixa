@@ -2,8 +2,10 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.5.0
+ * Versão   : 3.6.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.6.0 (2026-11-16 16:10 BRT): link "Me lembrar do sorteio" no painel
+ *   (arquivo de agenda /sorteio-rifa.ics com alarmes na véspera e 10 min antes).
  * MODIFICAÇÕES v3.5.0 (2026-11-16 15:40 BRT): ESCALA FÍSICA REAL + COLISÕES
  *   - Escala: raio da gaiola 1,45 un ≈ 0,15 m → 1 un ≈ 0,1 m. Gravidade real
  *     g = 9,8 m/s² = 98 un/s² (antes 9 → "câmera lenta", ~10× mais lento).
@@ -1233,6 +1235,8 @@ function statusEspera() {
   return dados ? `${MODO_ENSAIO ? 'ENSAIO' : 'Sorteio oficial'}: ${fmtData(dados.agenda.fim)} (horário de Brasília)` : '';
 }
 function atualizarDemo() {
+  const lem = $('lembrete');                          // v3.6.0: lembrete só antes do sorteio
+  if (lem) lem.hidden = !(dados && dados.fase === 'aguardando');
   const b = $('btnDemo'); if (!b) return;
   b.hidden = !(demoPermitida() || sorteando);
 }

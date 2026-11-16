@@ -4,7 +4,7 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 3.5.0
+ Versão   : 3.6.0
  Data/Hora: 2026-11-16 11:30 (BRT, UTC-3)
 
  MODIFICAÇÕES v2.7.0 (2026-11-16) — SMARTPHONE
@@ -176,6 +176,8 @@
   .btn-som[hidden] { display: none; }
   .btn-demo { margin-top: 8px; padding: 11px; font-size: 1rem; }
   .btn-demo[hidden] { display: none; }
+  .lembrete { display: block; margin: 4px 0 2px; color: #ffd34d; font-size: .85rem; font-weight: 600; }
+  .lembrete[hidden] { display: none; }
   @media (orientation: landscape) and (max-height: 500px) { .btn-demo, .btn-som { padding: 8px; font-size: .9rem; } }
 
   /* Histórico */
@@ -257,6 +259,7 @@
     <div class="casa"><div class="digito vazio" id="d2">–</div><span>Unidade</span></div>
   </div>
   <div class="relogio" id="relogioBox" hidden><span id="relogio"></span></div>
+  <a class="lembrete" id="lembrete" href="/sorteio-rifa.ics" hidden>📅 Me lembrar do sorteio (agenda do celular)</a>
   <div class="resultado" id="resultado" aria-live="assertive"></div>
   <!-- Sorteio manual só no modo teste (?teste=1). O oficial é automático. -->
   <button class="btn" id="btnSortear" hidden data-teste>Sortear (teste)</button>
