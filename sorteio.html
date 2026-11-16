@@ -4,8 +4,21 @@
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  Arquivo  : sorteio.html (Gaiola virtual 3D)
  Autor    : Jossian Brito
- Versão   : 2.1.0
- Data/Hora: 2026-11-16 10:30 (BRT, UTC-3)
+ Versão   : 2.2.0
+ Data/Hora: 2026-11-16 11:15 (BRT, UTC-3)
+
+ MODIFICAÇÕES v2.2.0 (2026-11-16) — CENTRALIZAÇÃO E MODO TESTE (física inalterada)
+  - [LAYOUT] Cena 3D centralizada na ÁREA LIVRE entre a barra superior e o
+    painel (camera.setViewOffset). Antes o painel cobria a gaiola central e
+    a placa "DEZENA" no desktop.
+  - [LAYOUT] Enquadramento por largura E altura (vale o maior dos dois),
+    com margem calculada a partir das medidas reais da cena.
+  - [LAYOUT] Névoa ajustada à distância da câmera: no celular as gaiolas
+    sumiam na névoa (a câmera ficava além do "far" fixo de 30).
+  - [BUG] Faixa do fundo aparecia espelhada (textura em face interna).
+  - [LAYOUT] Faixa reposicionada atrás das gaiolas, sem corte no topo.
+  - [TESTE] Elementos de teste ocultos (histórico e dica de atalho).
+    Reaparecem com ?teste=1 na URL.
 
  MODIFICAÇÕES v2.1.0 (2026-11-16) — ENTORNO DA GAIOLA (física inalterada)
   - [CENA] Suporte completo: base no chão, colunas em "A", mancais no eixo e
@@ -68,7 +81,8 @@
     padding: 10px 14px; background: linear-gradient(180deg, rgba(0,0,0,.45), transparent);
   }
   .topo h1 { margin: 0; font-size: 1.05rem; letter-spacing: .3px; }
-  .topo h1 small { display: block; font-weight: 400; opacity: .75; font-size: .75rem; }
+  .topo h1 small { display: block; font-weight: 400; opacity: .75; font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topo h1 { min-width: 0; } .icones { flex-shrink: 0; }
   .icones { display: flex; gap: 6px; }
   .icone {
     width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--borda);
@@ -118,7 +132,7 @@
     position: fixed; top: 64px; right: 12px; z-index: 9; width: 190px; max-height: 40vh; overflow: auto;
     background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; padding: 10px 12px; font-size: .85rem;
   }
-  .historico[hidden] { display: none; }
+  .historico[hidden], [data-teste][hidden] { display: none !important; }
   .historico h2 { font-size: .8rem; margin: 0 0 6px; text-transform: uppercase; opacity: .75; }
   .historico ol { margin: 0; padding-left: 18px; }
   .historico li { margin: 3px 0; }
@@ -151,7 +165,7 @@
 <header class="topo">
   <h1>🎱 Gaiola de Sorteio<small>Rifa Solidária • Chico da Baixa • 001 a <span id="totalTxt">199</span></small></h1>
   <div class="icones">
-    <button class="icone" id="btnHist" title="Histórico" aria-label="Mostrar histórico">🕘</button>
+    <button class="icone" id="btnHist" title="Histórico" aria-label="Mostrar histórico" hidden data-teste>🕘</button>
     <button class="icone" id="btnSom" title="Som" aria-label="Desligar som" aria-pressed="true">🔊</button>
     <button class="icone" id="btnTela" title="Tela cheia" aria-label="Tela cheia">⛶</button>
     <a class="icone" href="/" title="Voltar à rifa" aria-label="Voltar à rifa">↩</a>
@@ -172,7 +186,7 @@
   </div>
   <div class="resultado" id="resultado" aria-live="assertive"></div>
   <button class="btn" id="btnSortear">Sortear</button>
-  <div class="dica">Atalho: Espaço ou Enter</div>
+  <div class="dica" hidden data-teste>Atalho: Espaço ou Enter</div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -192,6 +206,9 @@ const PISO_Y = -1.5;                     // altura do tampo da mesa (entorno)
 const CORES = [0xC8102E, 0x00884f, 0xf2b705]; // centena, dezena, unidade
 const ROTULOS = ['Centena', 'Dezena', 'Unidade'];
 const API_NUM = '/.netlify/functions/numeros';
+// Modo teste: ?teste=1 mostra os elementos marcados com data-teste.
+const MODO_TESTE = new URLSearchParams(location.search).get('teste') === '1';
+if (MODO_TESTE) document.querySelectorAll('[data-teste]').forEach((el) => (el.hidden = false));
 
 const $ = (id) => document.getElementById(id);
 const espera = (ms) => new Promise((r) => setTimeout(r, ms * T));
@@ -290,7 +307,10 @@ function texturaFaixa() {
   g.fillStyle = '#f2b705'; g.fillRect(0, 0, 2048, 8); g.fillRect(0, 248, 2048, 8);
   g.font = 'bold 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText('RIFA SOLIDÁRIA • CHICO DA BAIXA', 1024, 132);
-  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+  // Vista por dentro (BackSide) a coordenada u fica invertida → espelha de volta.
+  t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1;
+  return t;
 }
 
 // Gaiola em foco: holofote + brilho do aro na gaiola i; null = todas neutras.
@@ -464,24 +484,53 @@ function passoFisica(dt) {
 }
 
 /* ===========================================================================
- * ENQUADRAMENTO — distância de câmera para caber as 3 gaiolas
- *   Campo de visão horizontal: hfov = 2·atan( tan(vfov/2) · aspecto )
- *   Distância para meia-largura L:  d = L / tan(hfov/2)
- *   No celular em pé (aspecto < 1) a câmera recua automaticamente.
+ * ENQUADRAMENTO E CENTRALIZAÇÃO (v2.2.0)
+ *
+ *   Caixa da cena (unid. 3D): largura ±MEIA_LARG, altura de Y_BAIXO a Y_ALTO
+ *   (da placa na mesa até a bola extraída no topo).
+ *
+ *   Área livre na tela: entre a barra superior (topo) e o painel (base).
+ *     hLivre = base − topo
+ *   Distância necessária para caber:
+ *     pela largura: dW = MEIA_LARG / tan(hfov/2)
+ *     pela altura : dH = MEIA_ALT / (tan(vfov/2) · hLivre/h)
+ *     d = max(dW, dH) · margem
+ *   Centralização: deslocamos o centro óptico com setViewOffset para que o
+ *   centro da cena caia no centro da área livre, e não no centro da tela:
+ *     offsetY = h/2 − (topo + base)/2   (positivo → cena sobe)
+ *   Analogia: é como ajustar o trim do rebocador — o casco (cena) fica no
+ *   mesmo lugar, só mudamos a linha d'água de referência (centro óptico).
  * ========================================================================= */
+const MEIA_LARG = CAGE_X[2] + CAGE_R + 0.75;   // inclui manivela e colunas
+const Y_BAIXO = PISO_Y - 0.25, Y_ALTO = CAGE_Y + CAGE_R + 1.35;
+const FAIXA_Y = Y_ALTO + 0.9;                  // faixa logo acima, ao fundo
+const MEIA_ALT = (Y_ALTO - Y_BAIXO) / 2, CENTRO_Y = (Y_ALTO + Y_BAIXO) / 2;
+
 function enquadrar() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h;
+
+  const topo = document.querySelector('.topo').getBoundingClientRect().bottom;
+  const base = document.querySelector('.painel').getBoundingClientRect().top - 8;
+  const hLivre = Math.max(120, base - topo);
+
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
-  const meiaLarg = CAGE_X[2] + CAGE_R + 0.9;
-  const d = Math.max(9, meiaLarg / Math.tan(hfov / 2));
-  // Em retrato o painel ocupa a parte de baixo: sobe o alvo da câmera.
-  const alvoY = camera.aspect < 1 ? -0.9 : -0.2;
-  camera.position.set(0, 2.2 + d * 0.08, d);
-  camera.lookAt(0, CAGE_Y + alvoY, 0);
+  const dW = MEIA_LARG / Math.tan(hfov / 2);
+  const dH = MEIA_ALT / (Math.tan(vfov / 2) * (hLivre / h));
+  const d = Math.max(dW, dH) * 1.06;            // 6% de folga
+
+  // Câmera levemente elevada (≈10°) olhando para o centro da cena.
+  camera.position.set(0, CENTRO_Y + d * 0.17, d);
+  camera.lookAt(0, CENTRO_Y, 0);
+
+  const offsetY = h / 2 - (topo + base) / 2;
+  camera.setViewOffset(w, h, 0, offsetY, w, h);
   camera.updateProjectionMatrix();
+
+  // Névoa acompanha a distância: nítido nas gaiolas, esmaecido só ao fundo.
+  scene.fog.near = d + 2; scene.fog.far = d + 22;
 }
 
 function iniciar3D() {
@@ -504,7 +553,7 @@ function iniciar3D() {
   const contra = new THREE.PointLight(0xffd36b, 0.6, 20); contra.position.set(0, 3, -4); scene.add(contra);
 
   // Névoa linear: objetos distantes fundem com o fundo (profundidade)
-  scene.fog = new THREE.Fog(0x04190f, 14, 30);
+  scene.fog = new THREE.Fog(0x04190f, 14, 30);      // near/far reajustados em enquadrar()
 
   // Mesa: tampo de feltro verde + borda de madeira
   const tampo = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.1, 64),
@@ -520,11 +569,13 @@ function iniciar3D() {
   // Painel de fundo curvo (arco de cilindro visto por dentro) com a faixa
   const painel = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 1.4, 64, 1, true, -0.62, 1.24),
     new THREE.MeshBasicMaterial({ map: texturaFaixa(), side: THREE.BackSide, fog: false }));
-  painel.position.set(0, 4.6, 4); painel.rotation.y = Math.PI; scene.add(painel);
+  painel.position.set(0, FAIXA_Y, 4); painel.rotation.y = Math.PI; scene.add(painel);
 
   for (let i = 0; i < 3; i++) criarGaiola(i);
   enquadrar();
   addEventListener('resize', enquadrar);
+  // O painel muda de altura quando o resultado aparece: recentraliza a cena.
+  if (window.ResizeObserver) new ResizeObserver(() => enquadrar()).observe(document.querySelector('.painel'));
 
   let acum = 0, ultimo = performance.now();
   renderer.setAnimationLoop((agora) => {

@@ -89,6 +89,7 @@ A gaiola virtual (`sorteio.html`) sorteia 001–199 com `crypto.getRandomValues`
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 2.2.0 | 2026-11-16 | Gaiola centralizada na área livre (desktop/celular), faixa corrigida, elementos de teste ocultos (`?teste=1`) |
 | 2.1.0 | 2026-11-16 | Entorno da gaiola: suporte em A, manivela, mesa, faixa, placas, holofote de foco, pódio |
 | 2.0.0 | 2026-11-16 | 199 números; contadores online/visitas corrigidos; Loteria Federal oculta; segurança/LGPD; nova gaiola |
 | 1.0.0 | 2026-11-16 | Versão inicial |

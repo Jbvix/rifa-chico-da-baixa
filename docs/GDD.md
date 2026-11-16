@@ -1,8 +1,8 @@
 # GDD — Rifa Solidária Chico da Baixa (Game/Design Document)
 
 - **Autor:** Jossian Brito
-- **Versão do documento:** 2.1.0
-- **Data/Hora:** 2026-11-16 10:30 (BRT, UTC-3)
+- **Versão do documento:** 2.2.0
+- **Data/Hora:** 2026-11-16 11:15 (BRT, UTC-3)
 
 ## 1. Visão
 Rifa beneficente online, transparente e sem atrito no celular: o comprador escolhe um
@@ -45,6 +45,15 @@ A bola extraída corresponde ao dígito sorteado.
 - Foco: holofote dedicado + aro com brilho pulsante na gaiola em sorteio; as outras
   esmaecem (resposta de 1ª ordem, τ = 0,25 s).
 - Pódio: anel luminoso sob a bola extraída.
+
+### 4.4 Centralização e modo teste (v2.2.0)
+- A cena é enquadrada pela largura **e** pela altura da área livre (entre a barra
+  superior e o painel): `d = max(dW, dH)·1,06`, com `dW = L/tan(hfov/2)` e
+  `dH = H/(tan(vfov/2)·hLivre/h)`.
+- O centro óptico é deslocado com `setViewOffset` (`offsetY = h/2 − (topo+base)/2`),
+  de modo que a cena fique no meio da área visível, e não atrás do painel.
+- A névoa acompanha a distância da câmera (`near = d+2`, `far = d+22`).
+- Histórico e dica de atalho são elementos de teste: ficam ocultos e aparecem com `?teste=1`.
 
 ## 5. Backend
 - `numeros.js`: GET público (primeiro nome apenas); POST com validação e escrita
