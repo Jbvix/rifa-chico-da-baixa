@@ -2,16 +2,16 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : netlify/lib/sorteio-core.js  (núcleo do SORTEIO OFICIAL)
  * Autor    : Jossian Brito
- * Versão   : 2.6.0
+ * Versão   : 3.5.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
  *
  * CRONOGRAMA OFICIAL (horário de Brasília, UTC−3)
- *   23/12/2026 09:55:00  gaiolas começam a girar  (vendas encerradas)
+ *   23/12/2026 09:50:00  gaiolas começam a girar  (vendas encerradas) — v3.5.0
  *   23/12/2026 09:59:40  1ª gaiola (centena) revela
  *   23/12/2026 09:59:50  2ª gaiola (dezena)  revela
  *   23/12/2026 10:00:00  3ª gaiola (unidade) revela → resultado final
  *   Tudo é derivado de T3 (10:00:00 BRT = 13:00:00 UTC):
- *     inicio = T3 − 300 s ; T1 = T3 − 20 s ; T2 = T3 − 10 s
+ *     inicio = T3 − 600 s ; T1 = T3 − 20 s ; T2 = T3 − 10 s
  *   Para ensaio em deploy de teste: variável de ambiente SORTEIO_T3 (ISO 8601).
  *
  * PRINCÍPIOS
@@ -60,7 +60,8 @@ const loja = () => getStore({ name: "rifa-sorteio", consistency: "strong" });
 
 export function agenda() {
   const fim = Date.parse(process.env.SORTEIO_T3 || T3_PADRAO);
-  return { inicio: fim - 300_000, t: [fim - 20_000, fim - 10_000, fim], fim };
+  // v3.5.0: giro começa às 09:50 (T3 − 600 s); antes 09:55 (T3 − 300 s)
+  return { inicio: fim - 600_000, t: [fim - 20_000, fim - 10_000, fim], fim };
 }
 
 // Instante em que a gaiola i pode ser revelada ao público (início da animação dela).

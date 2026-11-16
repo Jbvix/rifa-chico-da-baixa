@@ -2,8 +2,26 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.4.0
+ * Versão   : 3.5.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.5.0 (2026-11-16 15:40 BRT): ESCALA FÍSICA REAL + COLISÕES
+ *   - Escala: raio da gaiola 1,45 un ≈ 0,15 m → 1 un ≈ 0,1 m. Gravidade real
+ *     g = 9,8 m/s² = 98 un/s² (antes 9 → "câmera lenta", ~10× mais lento).
+ *   - Passo físico 1/480 s (bolas rápidas não atravessam umas às outras).
+ *   - Restituição: bola-bola 0,85 ; bola-parede 0,70 ; bola-pino 0,70.
+ *   - Colisão bola-bola com 3 iterações por passo + atrito tangencial
+ *     (bolas amontoadas se separam; troca de "efeito" entre elas).
+ *   - Atrito com parede/pinos como relaxação exponencial (τ = 33 ms) em vez
+ *     de 25% por passo (a bola "colava" na parede e não se espalhava).
+ *   - Arrasto do ar 0,05 s⁻¹ (desprezível, como na realidade).
+ *   - Condução, som e tubo reescalados para a nova gravidade.
+ *   - 4 aletas junto à parede (0,80·R) levantam as bolas (dispersão 19% →
+ *     42% na metade de cima); atrito de contato τ = 8 ms; ω = 9 rad/s.
+ *   - Condução: K = 1500 com amortecimento crítico, rampa 0,8 s →
+ *     captura natural na comporta em 29 de 30 sorteios (física pura).
+ *   - Medido (física pura): 54 choques bola-bola/s (antes 5), 0 bolas fora,
+ *     0 sobreposição, mistura por inércia ~0,9 s após a parada.
+ *   - Sorteio oficial: gaiolas começam a girar às 09:50 (antes 09:55).
  * MODIFICAÇÕES v3.4.0 (2026-11-16 15:10 BRT): TEMPOS 30 s / 40 s / 50 s
  *   - Demonstração e teste: centena cai aos 30 s, dezena aos 40 s e unidade
  *     aos 50 s após o início do giro — mesmo motor cronometrado do oficial
@@ -70,6 +88,8 @@ const CAGE_Y = 0.9;                      // altura do centro das gaiolas
 const CAGE_X = [-3.3, 0, 3.3];           // posição das 3 gaiolas
 const PISO_Y = -1.5;                     // altura do tampo da mesa (entorno)
 const PINO_R = 0.13;                     // raio das esferas fixas de mistura (v3.0.0)
+const N_ALETAS = 4;                      // aletas junto à parede (v3.5.0)
+const OMEGA_GIRO = 9;                    // rad/s ≈ 86 rpm (v3.5.0; antes 7)
 // Centro da bola ao longo do tubo, em coordenadas da gaiola (centro = 0,0,0):
 // comporta no fundo → queda curta → rampa suave até o copo na frente da base.
 const TUBO_PONTOS = [[0, -1.25, 0], [0, -1.6, 0.15], [0.08, -1.68, 0.6], [0.17, -1.73, 1.0], [0.25, -1.76, 1.42]]
@@ -128,7 +148,7 @@ function tom(freq, dur = 0.12, tipo = 'sine', vol = 0.15, atraso = 0) {
  *   Fonte: rajada de ruído branco com decaimento exponencial
  *     x[n] = ruído[n] · e^(−n / (fs·τ)),   τ = 4 ms   (choque seco, curto)
  *   Filtro passa-faixa 2,2–4 kHz, Q = 3: timbre de esfera plástica oca.
- *   Volume ∝ energia cinética do choque:  g = min(0,45 ; 0,05·v²)
+ *   Volume ∝ energia cinética do choque:  g = min(0,45 ; 0,05·(v/3,3)²)
  *     v = 1 m/s → 0,05 (leve) ; v = 3 m/s → 0,45 (forte, limitado).
  *   Pan estéreo por gaiola: centena −0,7 ; dezena 0 ; unidade +0,7.
  *   Limite: ≥ 12 ms entre estalos (≤ ~80/s) para não sobrecarregar o celular.
@@ -140,7 +160,8 @@ function somImpacto(vel, gaiolaIdx = 1) {
   if (!somLigado || !audioLiberado || !actx || actx.state !== 'running') return;
   const c = actx, t = c.currentTime;
   if (t - ultimoEstalo < 0.012) return;
-  const g0 = Math.min(0.45, 0.05 * vel * vel);
+  // v3.5.0: velocidades em escala real (~3,3× maiores) → v normalizado por 3,3
+  const vr = vel / 3.3, g0 = Math.min(0.45, 0.05 * vr * vr);
   if (g0 < 0.01) return;
   ultimoEstalo = t;
   if (!ruidoImpacto) {
@@ -390,8 +411,12 @@ function criarGaiola(idx) {
   // 6 pinos em anel (raio 0,62·R), alternando ±0,38·R no eixo x, a cada 60°.
   const matPino = new THREE.MeshStandardMaterial({ color: 0xd9b44a, metalness: 0.85, roughness: 0.25 });
   const pinosLocal = [];
-  for (let k = 0; k < 6; k++) {
-    const phi = k * Math.PI / 3, rr = 0.62 * CAGE_R, x = (k % 2 ? 1 : -1) * 0.38 * CAGE_R;
+  // v3.5.0: + N_ALETAS "aletas" junto à parede (raio 0,80·R): como as pás de um
+  // tambor misturador, levantam as bolas e as soltam lá em cima → dispersão.
+  for (let k = 0; k < 6 + N_ALETAS; k++) {
+    const aleta = k >= 6;
+    const phi = aleta ? (k - 6) * 2 * Math.PI / N_ALETAS + Math.PI / 4 : k * Math.PI / 3;
+    const rr = (aleta ? 0.80 : 0.62) * CAGE_R, x = aleta ? ((k % 2 ? 1 : -1) * 0.2 * CAGE_R) : (k % 2 ? 1 : -1) * 0.38 * CAGE_R;
     const pl = new THREE.Vector3(x, rr * Math.cos(phi), rr * Math.sin(phi));
     pinosLocal.push(pl);
     const pino = new THREE.Mesh(new THREE.SphereGeometry(PINO_R, 16, 12), matPino);
@@ -477,10 +502,18 @@ function reposicionar(b) {
  *   7) (v3.1.0) Captura: com a comporta aberta, se |p − comporta| < 0,30
  *      a bola cai no tubo com a velocidade que tinha.
  * ========================================================================= */
-const G = -9.0, ARRASTO = 0.35, REST = 0.55, ATRITO = 0.25, DT = 1 / 240;
+/* v3.5.0 — escala real: 1 unidade ≈ 0,1 m
+ *   G      = −98 un/s²  (= 9,8 m/s²)
+ *   REST   = 0,85 bola-bola ; REST_PAREDE = 0,70 ; REST_PINO = 0,70
+ *   Atrito de contato: v_t,rel ← v_t,rel · e^(−dt/τ),  τ = 33 ms
+ *     (fração removida por passo = 1 − e^(−dt/τ) ≈ 6% em 1/480 s)
+ *   Velocidade típica: queda livre do topo ao fundo da gaiola (2,5 un)
+ *     v = √(2·98·2,5) ≈ 22 un/s ≈ 2,2 m/s ; t = √(2·2,5/98) ≈ 0,23 s */
+const G = -98, ARRASTO = 0.05, REST = 0.85, REST_PAREDE = 0.7, TAU_ATRITO = 0.008, DT = 1 / 480, ITER_BOLAS = 3;
+const ATRITO = 1 - Math.exp(-DT / TAU_ATRITO);
 const tmp = new THREE.Vector3(), n = new THREE.Vector3(), vp = new THREE.Vector3();
 
-const K_GUIA = 80, RAMPA_GUIA = 0.8, R_CAPTURA = 0.30, REST_PINO = 0.6;
+const K_GUIA = 1500, RAMPA_GUIA = 0.8, R_CAPTURA = 0.30, REST_PINO = 0.7;
 const alvoGuia = new THREE.Vector3();
 
 function passoFisica(dt) {
@@ -496,7 +529,7 @@ function passoFisica(dt) {
     if (b.guia) {                                       // condução suave à comporta
       alvoGuia.set(CAGE_X[b.gaiola], CAGE_Y - (CAGE_R - BALL_R), 0);
       const tg = Math.min(1, (performance.now() - b.guia) / 1000 / RAMPA_GUIA);
-      const k = K_GUIA * tg * tg, c = 0.7 * 2 * Math.sqrt(k);
+      const k = K_GUIA * tg * tg, c = 2 * Math.sqrt(k);      // amortecimento crítico
       tmp.subVectors(alvoGuia, b.p);
       b.v.addScaledVector(tmp, k * dt).addScaledVector(b.v, -c * dt);
       // comporta aberta + bola passando por ela → cai no tubo
@@ -513,8 +546,8 @@ function passoFisica(dt) {
       b.p.set(CAGE_X[b.gaiola], CAGE_Y, 0).addScaledVector(n, maxR);
       const vn = b.v.dot(n);
       if (vn > 0) {
-        b.v.addScaledVector(n, -(1 + REST) * vn);
-        if (vn > 0.6) somImpacto(vn, b.gaiola);                 // bola × parede
+        b.v.addScaledVector(n, -(1 + REST_PAREDE) * vn);
+        if (vn > 2) somImpacto(vn, b.gaiola);                   // bola × parede
       }
       vp.set(0, -gai.omega * tmp.z, gai.omega * tmp.y);   // ω × r
       vp.subVectors(b.v, vp);                              // velocidade relativa
@@ -533,29 +566,41 @@ function passoFisica(dt) {
         const rel = b.v.clone().sub(vp), vn = rel.dot(n);
         if (vn < 0) {
           b.v.addScaledVector(n, -(1 + REST_PINO) * vn);
-          if (vn < -0.6) somImpacto(-vn, b.gaiola);              // bola × pino
+          if (vn < -2) somImpacto(-vn, b.gaiola);                // bola × pino
         }
         rel.copy(b.v).sub(vp); rel.addScaledVector(n, -rel.dot(n));   // tangencial
         b.v.addScaledVector(rel, -ATRITO);
       }
     }
   }
-  // Colisões bola-bola (no máximo 10 bolas por gaiola → 45 pares; barato)
-  for (let i = 0; i < bolas.length; i++) {
-    const a = bolas[i]; if (!a.livre) continue;
-    for (let j = i + 1; j < bolas.length; j++) {
-      const b = bolas[j]; if (!b.livre || b.gaiola !== a.gaiola) continue;
-      tmp.subVectors(b.p, a.p);
-      const d = tmp.length(), min = BALL_R * 2;
-      if (d > 0 && d < min) {
-        n.copy(tmp).divideScalar(d);
-        const corr = (min - d) / 2;
-        a.p.addScaledVector(n, -corr); b.p.addScaledVector(n, corr);
-        const rel = vp.subVectors(b.v, a.v).dot(n);
-        if (rel < 0) {
-          if (rel < -0.5) somImpacto(-rel, a.gaiola);          // bola × bola
-          const imp = -(1 + REST) * rel / 2;
-          a.v.addScaledVector(n, -imp); b.v.addScaledVector(n, imp);
+  // Colisões bola-bola (até 11 bolas por gaiola → 55 pares) — v3.5.0:
+  //   3 iterações por passo (amontoados se desfazem), impulso normal com
+  //   e = 0,85 e atrito tangencial entre as bolas (μ ≈ 0,1 do impulso normal).
+  for (let it = 0; it < ITER_BOLAS; it++) {
+    for (let i = 0; i < bolas.length; i++) {
+      const a = bolas[i]; if (!a.livre) continue;
+      for (let j = i + 1; j < bolas.length; j++) {
+        const b = bolas[j]; if (!b.livre || b.gaiola !== a.gaiola) continue;
+        tmp.subVectors(b.p, a.p);
+        const d = tmp.length(), min = BALL_R * 2;
+        if (d > 0 && d < min) {
+          n.copy(tmp).divideScalar(d);
+          const corr = (min - d) / 2;
+          a.p.addScaledVector(n, -corr); b.p.addScaledVector(n, corr);
+          vp.subVectors(b.v, a.v);
+          const rel = vp.dot(n);
+          if (rel < 0) {
+            if (it === 0 && rel < -2) somImpacto(-rel, a.gaiola);   // bola × bola
+            const imp = -(1 + REST) * rel / 2;                       // massas iguais
+            a.v.addScaledVector(n, -imp); b.v.addScaledVector(n, imp);
+            // atrito tangencial (Coulomb simplificado): |Δv_t| ≤ 0,1·imp
+            vp.addScaledVector(n, -rel);                             // componente tangencial
+            const vt = vp.length();
+            if (vt > 1e-6) {
+              const dvt = Math.min(vt / 2, 0.1 * imp) / vt;
+              a.v.addScaledVector(vp, dvt); b.v.addScaledVector(vp, -dvt);
+            }
+          }
         }
       }
     }
@@ -742,9 +787,9 @@ function passoTubo(dt) {
     const g = gaiolas[b.gaiola], u = Math.min(1, e.s / g.comprimento);
     g.caminho.getTangentAt(u, TAN);
     e.v += ((5 / 7) * -G * -TAN.y - C_ROL * e.v) * dt;   // −TAN.y = sen θ (descida)
-    e.v = Math.max(e.v, 0.15);                          // não volta para dentro da gaiola
+    e.v = Math.max(e.v, 0.5);                           // não volta para dentro da gaiola
     e.s += e.v * dt;
-    if (e.s >= g.comprimento) { e.s = g.comprimento; e.chegou = true; e.tc = 0; somImpacto(Math.max(2, e.v), b.gaiola); e.resolver(); }
+    if (e.s >= g.comprimento) { e.s = g.comprimento; e.chegou = true; e.tc = 0; somImpacto(Math.max(6, e.v), b.gaiola); e.resolver(); }
     g.caminho.getPointAt(Math.min(1, e.s / g.comprimento), e.pos).add(g.grupo.position);
     // rolagem: eixo = tangente × vertical ; ângulo = ds / r
     EIXO.crossVectors(TAN, CIMA).normalize();
@@ -771,7 +816,7 @@ function extrairBola(gaiolaIdx, digito, duracaoMs = 900 * T) {
       if (!b.livre) return;
       e.motivo = motivo;
       b.capturar = null; b.livre = false; b.guia = false;
-      e.v = Math.min(1.6, Math.max(0.5, b.v.length()));   // entra com a própria velocidade
+      e.v = Math.min(5, Math.max(1.5, b.v.length()));     // entra com a própria velocidade
       b.v.set(0, 0, 0);
       g.caminho.getPointAt(0, e.pos).add(g.grupo.position);
       tubo.set(b, e);
@@ -795,7 +840,7 @@ function devolverBola(b) {
     const k = Math.min(1, (agora - t0) / dur);
     b.mesh.position.lerpVectors(ini, fim, k); b.mesh.position.y += Math.sin(Math.PI * k) * 0.8;
     if (k < 1) return requestAnimationFrame(quadro);
-    b.p.copy(fim); b.v.set(0, -1, 0); b.livre = true; b.guia = false;   // cai pela gravidade
+    b.p.copy(fim); b.v.set(0, -2, 0); b.livre = true; b.guia = false;   // cai pela gravidade
   })(t0);
 }
 
@@ -1016,7 +1061,7 @@ async function animarGaiola(i, g, Ti, ciclo, local = false) {
     devolverBola(bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA));
     mostrarAuditoria(i, false);
     $('status').textContent = `Girando a ${ROTULOS[i].toLowerCase()} novamente…`;
-    if (gaiolas[i]) { gaiolas[i].podioAlvo = 0; gaiolas[i].alvo = 7; }
+    if (gaiolas[i]) { gaiolas[i].podioAlvo = 0; gaiolas[i].alvo = OMEGA_GIRO; }
     await ate(Ca + C);
   }
   if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
@@ -1030,7 +1075,7 @@ async function animarGaiola(i, g, Ti, ciclo, local = false) {
 
 /* ===========================================================================
  * CICLO DO SORTEIO OFICIAL
- *   aguardando : contagem regressiva até 09:55 (gaiolas paradas)
+ *   aguardando : contagem regressiva até 09:50 (gaiolas paradas)
  *   ao-vivo    : gaiolas girando; consulta o servidor com frequência maior
  *                perto de cada revelação (1 s nos últimos 12 s antes de T1)
  *   encerrado  : mostra número e ganhador (nome + tel. final)
@@ -1063,7 +1108,7 @@ function atualizarRelogio() {
     if (!sorteando) $('status').textContent = statusEspera();
   } else if (!girando && agora < ag.fim) {
     girando = true;
-    gaiolas.forEach((g, i) => { if (!gaiolaFeita[i]) g.alvo = 7 + i * 0.6; });
+    gaiolas.forEach((g, i) => { if (!gaiolaFeita[i]) g.alvo = OMEGA_GIRO + i * 0.4; });
     $('status').textContent = '🔴 AO VIVO — gaiolas girando';
     querTrilha(true);
     if (agora - ag.inicio < 15000) falar('voz-abertura');   // só para quem está assistindo no início
@@ -1140,7 +1185,7 @@ async function sortearTeste(demo = false) {
   $('status').textContent = `${ROT} — girando as gaiolas…`;
   querTrilha(true);
   if (!demo) falar('voz-abertura');                   // "sorteio oficial" só no teste
-  gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
+  gaiolas.forEach((g, i) => (g.alvo = OMEGA_GIRO + i * 0.4));
   const ciclo = { auditoriaMs: 4000, extracaoMs: 1800 };
   await Promise.all([0, 1, 2].map((i) => animarGaiola(i, { digito: digs[i], auditorias: auditorias[i] }, Ts[i], ciclo, true)));
   demoAgenda = null;

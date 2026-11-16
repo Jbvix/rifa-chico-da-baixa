@@ -14,7 +14,7 @@
  *      Analogia: o AIS — o navio só aparece no radar enquanto transmite.
  *   2. SORTEIO — lê /.netlify/functions/sorteio: data oficial, número
  *      sorteado e ganhador (nome + 4 últimos dígitos do telefone).
- *   3. COMPRAS ENCERRADAS — a partir das 09:55 de 23/12 a cartela deixa de
+ *   3. COMPRAS ENCERRADAS — a partir das 09:50 de 23/12 (v3.5.0) a cartela deixa de
  *      aceitar cliques (bloqueio visual; o encerramento definitivo das vendas
  *      é feito no painel administrativo).
  *

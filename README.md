@@ -94,7 +94,7 @@ O valor do Pix é creditado **diretamente** na conta da Sra. Maria Lúcia.
 
 | Hora | Evento |
 |------|--------|
-| 09:55:00 | Gaiolas começam a girar · **compras encerradas** |
+| 09:50:00 | Gaiolas começam a girar · **compras encerradas** |
 | 09:59:40 | 1ª gaiola — centena (azul: 0, 1 + A) |
 | 09:59:50 | 2ª gaiola — dezena (verde: 0–9 + A) |
 | 10:00:00 | 3ª gaiola — unidade (amarela: 0–9 + A) → resultado |
@@ -129,6 +129,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.5.0 | 2026-11-16 | **Publicado.** Física em escala real (g = 98 un/s², 1 un ≈ 0,1 m), colisão bola-bola com 3 iterações e atrito, 4 aletas, ω = 9 rad/s; giro oficial a partir das **09:50** |
 | 3.4.0 | 2026-11-16 | **Publicado.** Demonstração/teste com quedas aos 30 s (centena), 40 s (dezena) e 50 s (unidade), auditorias antes de cada queda, contagem no painel |
 | 3.3.0 | 2026-11-16 | **Publicado.** Som das bolas batendo: estalo plástico em bola-bola, parede, pinos e copo; volume ∝ v², estéreo por gaiola |
 | 3.2.0 | 2026-11-16 | **Publicado.** Música gospel até o sorteio (desde o toque em ativar som); botão "Ver demonstração das gaiolas" (não oficial, até 2 min antes do início) |

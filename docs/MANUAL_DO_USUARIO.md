@@ -17,7 +17,7 @@ Os contadores no topo mostram em tempo real: disponíveis, comprados, pessoas on
 (quem está com a página aberta nos últimos ~45 s) e visitas (1 por sessão).
 
 ## Sorteio oficial — 23/12/2026 (horário de Brasília)
-- **09:55** as gaiolas começam a girar e **as compras são encerradas**.
+- **09:50** as gaiolas começam a girar e **as compras são encerradas**.
 - **09:59:40** centena · **09:59:50** dezena · **10:00:00** unidade = resultado.
 - Assista em `/sorteio.html`: a página mostra contagem regressiva e se sincroniza sozinha
   com o relógio do servidor; todos veem o mesmo resultado ao mesmo tempo.

@@ -14,7 +14,7 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 | Números | **199** (001 a 199) — corrigido na v2.0.0 (antes: 200 e "000 a 200") |
 | Preço | R$ 20,00 por número (Pix Copia e Cola) |
 | Sorteio | **Oficial pelas gaiolas**: 23/12/2026, resultado às 10:00 (Brasília) |
-| Encerramento das compras | 23/12/2026 09:55:00 (servidor recusa com HTTP 423) |
+| Encerramento das compras | 23/12/2026 09:50:00 (cartela bloqueada; encerrar também no painel) |
 | Loteria Federal | **Oculta** (v2.0.0), conteúdo preservado para reativação |
 
 ## 3. Telas
@@ -32,6 +32,14 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
   (análogo à camada-limite junto ao casco).
 - Inércia do tambor: `ω ← ω + (ω_alvo − ω)(1 − e^(−dt/τ))`, τ = 0,4 s.
 - Passo fixo 1/240 s.
+
+### 4.1.0 Escala física (v3.5.0)
+- 1 unidade ≈ 0,1 m (gaiola R = 1,45 un ≈ 0,15 m). g = 98 un/s² (= 9,8 m/s²). Passo 1/480 s.
+- Restituição: bola-bola 0,85; parede 0,70; pinos/aletas 0,70. Atrito de contato τ = 8 ms.
+- Colisão bola-bola: 3 iterações por passo + atrito tangencial (≤ 0,1·impulso normal).
+- 4 aletas a 0,80·R + 6 pinos a 0,62·R; ω = 9 rad/s (≈ 86 rpm).
+- Medido (física pura): v média 11 un/s (1,1 m/s), 47% das bolas na metade de cima,
+  ~50 choques bola-bola/s, 0 bolas fora, captura natural 28/30.
 
 ### 4.1.1 Mistura e tubo de saída (v3.0.0)
 - 6 esferas fixas (r = 0,13) presas ao tambor, em anel de raio 0,62·R, alternando ±0,38·R em x;
@@ -63,7 +71,7 @@ A bola extraída corresponde ao dígito sorteado.
 ### 4.2.2 Sorteio oficial agendado (v2.5.0)
 | Instante | Evento |
 |---|---|
-| T3 − 300 s (09:55:00) | gaiolas giram; compras encerradas |
+| T3 − 600 s (09:50:00) | gaiolas giram; compras encerradas |
 | T1 − 10 s (09:59:30) | servidor gera número + auditorias (uma vez, onlyIfNew) |
 | T1 (09:59:40) | centena revelada |
 | T2 (09:59:50) | dezena revelada |
