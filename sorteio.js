@@ -2,8 +2,17 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.0.0
+ * Versão   : 3.1.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.1.0 (2026-11-16 14:10 BRT): MISTURA CONTINUA APÓS A PARADA
+ *   - Condução suave: k cresce de 0 a 80 em 0,8 s (k = 80·(t/0,8)²) e o
+ *     amortecimento é 70% do crítico → logo após a parada a bola sorteada se
+ *     move pela inércia como as demais.
+ *   - Captura natural: a comporta abre e a bola entra no tubo quando PASSA
+ *     por ela (|p − comporta| < 0,30), com a própria velocidade (0,5–1,6).
+ *     Janela de 0,45 s (comporta abre 1,2 s antes da revelação); se a bola
+ *     não passar, entra pelo limite de segurança. Física pura, 60 sorteios:
+ *     ~70% de captura natural.
  * MODIFICAÇÕES v3.0.0 (2026-11-16 13:30 BRT): MISTURA E TUBO DE SAÍDA (física)
  *   - 6 esferas fixas (pinos) presas ao tambor de cada gaiola, girando com
  *     ele; colidem com as bolas pela mesma lei da parede (reflexão + arraste
@@ -384,7 +393,7 @@ function reposicionar(b) {
   const r = (CAGE_R - BALL_R) * 0.7;
   b.p.set(c.x + (Math.random() - 0.5) * r, c.y - Math.random() * r * 0.8, (Math.random() - 0.5) * r);
   b.v.set(0, 0, 0);
-  b.livre = true; b.guia = false;
+  b.livre = true; b.guia = false; b.capturar = null;
   tubo.delete(b);
   b.mesh.scale.setScalar(1);
   b.mesh.position.copy(b.p);
@@ -409,14 +418,17 @@ function reposicionar(b) {
  *        y' = y·cosθ − z·sinθ ;  z' = y·sinθ + z·cosθ
  *      velocidade do pino = ω × r ; colisão bola-pino com a MESMA lei da
  *      parede (o pino tem massa "infinita": só a bola muda de velocidade).
- *   6) (v3.0.0) Condução até a comporta enquanto a gaiola freia: mola-
- *      amortecedor crítico  a = k·(alvo − p) − c·v,  k = 80, c = 2√k ≈ 18
- *      → assenta em ~4/√k ≈ 0,45 s, dentro da frenagem de 0,9 s.
+ *   6) (v3.1.0) Condução suave até a comporta enquanto a gaiola freia:
+ *        a = k(t)·(alvo − p) − c(t)·v ,  k(t) = 80·min(1, t/0,8)² ,
+ *        c(t) = 0,7·2√k(t)  (sub-amortecido: a bola ainda oscila/rola)
+ *      No início k ≈ 0 → só inércia, gravidade e colisões (mistura segue).
+ *   7) (v3.1.0) Captura: com a comporta aberta, se |p − comporta| < 0,30
+ *      a bola cai no tubo com a velocidade que tinha.
  * ========================================================================= */
 const G = -9.0, ARRASTO = 0.35, REST = 0.55, ATRITO = 0.25, DT = 1 / 240;
 const tmp = new THREE.Vector3(), n = new THREE.Vector3(), vp = new THREE.Vector3();
 
-const K_GUIA = 80, C_GUIA = 2 * Math.sqrt(80), REST_PINO = 0.6;
+const K_GUIA = 80, RAMPA_GUIA = 0.8, R_CAPTURA = 0.30, REST_PINO = 0.6;
 const alvoGuia = new THREE.Vector3();
 
 function passoFisica(dt) {
@@ -429,9 +441,14 @@ function passoFisica(dt) {
   for (const b of bolas) {
     if (!b.livre) continue;
     const gai = gaiolas[b.gaiola];
-    if (b.guia) {                                       // condução à comporta
+    if (b.guia) {                                       // condução suave à comporta
       alvoGuia.set(CAGE_X[b.gaiola], CAGE_Y - (CAGE_R - BALL_R), 0);
-      b.v.addScaledVector(tmp.subVectors(alvoGuia, b.p), K_GUIA * dt).addScaledVector(b.v, -C_GUIA * dt);
+      const tg = Math.min(1, (performance.now() - b.guia) / 1000 / RAMPA_GUIA);
+      const k = K_GUIA * tg * tg, c = 0.7 * 2 * Math.sqrt(k);
+      tmp.subVectors(alvoGuia, b.p);
+      b.v.addScaledVector(tmp, k * dt).addScaledVector(b.v, -c * dt);
+      // comporta aberta + bola passando por ela → cai no tubo
+      if (b.capturar && tmp.length() < R_CAPTURA) b.capturar();
     }
     b.v.y += G * dt;
     b.v.multiplyScalar(1 - ARRASTO * dt);
@@ -663,7 +680,7 @@ const C_ROL = 0.25, Q0 = new THREE.Quaternion(), EIXO = new THREE.Vector3(), TAN
 
 function conduzir(gaiolaIdx, digito) {
   const b = bolas.find((x) => x.gaiola === gaiolaIdx && x.digito === digito);
-  if (b && b.livre) b.guia = true;
+  if (b && b.livre) b.guia = performance.now();
 }
 
 function passoTubo(dt) {
@@ -688,19 +705,27 @@ function extrairBola(gaiolaIdx, digito, duracaoMs = 900 * T) {
     const b = bolas.find((x) => x.gaiola === gaiolaIdx && x.digito === digito);
     if (!b) return resolve();                          // defensivo: dígito sem bola
     const g = gaiolas[gaiolaIdx];
-    b.livre = false; b.guia = false;
-    // A comporta segura a bola (v = 0) e abre: parte só com a queda inicial.
-    b.v.set(0, 0, 0);
     const e = { s: 0, v: 0.8, pos: new THREE.Vector3(), chegou: false, tc: 0, resolver: resolve };
     if (duracaoMs <= 50) {                             // visitante atrasado: já está no copo
+      b.livre = false; b.guia = false;
       e.s = g.comprimento; e.chegou = true; e.tc = 1;
       g.caminho.getPointAt(1, e.pos).add(g.grupo.position);
       b.mesh.quaternion.identity(); b.mesh.scale.setScalar(1.6);
       tubo.set(b, e); return resolve();
     }
-    // entra pela comporta a partir de onde a condução deixou a bola
-    g.caminho.getPointAt(0, e.pos).add(g.grupo.position);
-    tubo.set(b, e);
+    // Comporta aberta: a bola continua livre (misturando) até passar por ela.
+    const entrar = (motivo = 'passagem') => {
+      if (!b.livre) return;
+      e.motivo = motivo;
+      b.capturar = null; b.livre = false; b.guia = false;
+      e.v = Math.min(1.6, Math.max(0.5, b.v.length()));   // entra com a própria velocidade
+      b.v.set(0, 0, 0);
+      g.caminho.getPointAt(0, e.pos).add(g.grupo.position);
+      tubo.set(b, e);
+    };
+    if (!b.guia) b.guia = performance.now() - RAMPA_GUIA * 1000;   // sem condução prévia (teste)
+    b.capturar = entrar;
+    setTimeout(() => entrar('limite'), 450);           // limite de segurança do horário
   });
 }
 
@@ -942,7 +967,7 @@ async function animarGaiola(i, g, Ti, ciclo) {
   if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
   conduzir(i, g.digito);
   falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);
-  await ate(Ti - 1000);                               // comporta abre; ~0,8 s de tubo
+  await ate(Ti - 1200);                               // comporta abre; captura ≤ 0,45 s + ~0,65 s de tubo
   extrairBola(i, g.digito, Math.max(100, Ti - agoraSync()));
   await ate(Ti);
   mostrarDigito(i, g.digito, true);

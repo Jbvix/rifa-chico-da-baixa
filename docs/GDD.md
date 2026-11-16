@@ -37,7 +37,9 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 - 6 esferas fixas (r = 0,13) presas ao tambor, em anel de raio 0,62·R, alternando ±0,38·R em x;
   colisão bola-pino com a lei da parede (reflexão e = 0,6 + arraste ω × r). Ângulo do tambor
   integrado no passo físico (1/240 s).
-- Frenagem: a bola sorteada é conduzida à comporta (mola-amortecedor crítico k = 80, c = 2√k).
+- Frenagem (v3.1.0): condução suave k(t) = 80·min(1, t/0,8)², c = 0,7·2√k → as bolas seguem misturando
+  pela inércia; comporta abre 1,2 s antes da revelação e captura a bola quando ela passa (raio 0,30),
+  com a própria velocidade; limite de segurança de 0,45 s (~70% de captura natural, física pura).
 - Comporta abre 1,0 s antes da revelação; no tubo a bola rola: a = (5/7)·g·sen θ − 0,25·v;
   L ≈ 1,67 → t ≈ 0,75 s. Copo com lupa (ampliação 1,6×) na frente da base.
 - Auditoria: volta por cima da gaiola e cai pela gravidade.
