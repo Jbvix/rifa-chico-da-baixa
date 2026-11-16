@@ -2,8 +2,10 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.6.0
+ * Versão   : 3.8.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.8.0 (2026-11-16 17:20 BRT): botão 📤 compartilhar o sorteio ao vivo
+ *   (folha nativa do celular; alternativa: WhatsApp / copiar link).
  * MODIFICAÇÕES v3.6.0 (2026-11-16 16:10 BRT): link "Me lembrar do sorteio" no painel
  *   (arquivo de agenda /sorteio-rifa.ics com alarmes na véspera e 10 min antes).
  * MODIFICAÇÕES v3.5.0 (2026-11-16 15:40 BRT): ESCALA FÍSICA REAL + COLISÕES
@@ -1260,6 +1262,18 @@ $('btnSom').addEventListener('click', (e) => {
   e.currentTarget.setAttribute('aria-label', somLigado ? 'Desligar som' : 'Ligar som');
 });
 $('btnHist').addEventListener('click', () => { const h = $('historico'); h.hidden = !h.hidden; });
+// v3.8.0: compartilhar o sorteio ao vivo
+$('btnCompartilhar').addEventListener('click', async () => {
+  const link = 'https://rifa-chico-da-baixa.netlify.app/sorteio.html';
+  const texto = '🎱 Sorteio ao vivo da Rifa Solidária do Chico da Baixa — 23/12, gaiolas girando a partir das 9h50 e resultado às 10h. Veja a demonstração com música:';
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Sorteio ao vivo – Rifa Chico da Baixa', text: texto, url: link }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  // alternativa: WhatsApp em nova aba (e link copiado para a área de transferência)
+  try { await navigator.clipboard.writeText(link); } catch {}
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto + ' ' + link), '_blank', 'noopener');
+});
 $('btnTela').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
   else document.exitFullscreen?.();

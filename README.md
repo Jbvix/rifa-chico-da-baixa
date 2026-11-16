@@ -137,6 +137,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.8.0 | 2026-11-16 | **Publicado.** Botões de compartilhar: "📤 Compartilhar a rifa" (topo), "📤 Convidar amigos" (após a compra) e 📤 na gaiola — folha nativa do celular, alternativa WhatsApp/copiar link |
 | 3.7.0 | 2026-11-16 | **Publicado.** Painel de vendas ao vivo (`/vendas.html`, somente leitura, link com chave; servidor guarda só o SHA-256), alertas com som/vibração/notificação |
 | 3.6.0 | 2026-11-16 | **Publicado.** Botão "📅 Me lembrar do sorteio" (`/sorteio-rifa.ics` + Google Agenda; alarmes na véspera e 10 min antes) |
 | 3.5.0 | 2026-11-16 | **Publicado.** Física em escala real (g = 98 un/s², 1 un ≈ 0,1 m), colisão bola-bola com 3 iterações e atrito, 4 aletas, ω = 9 rad/s; giro oficial a partir das **09:50** |

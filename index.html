@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
  Rifa Solidária – Sr. Francisco Felício (Chico da Baixa) · index.html
- Autor: Jossian Brito · Versão 3.6.0 · 2026-11-16 16:10 (BRT)
+ Autor: Jossian Brito · Versão 3.8.0 · 2026-11-16 17:20 (BRT)
+ MODIFICAÇÕES v3.8.0: botões "Compartilhar a rifa" (topo) e "Convidar amigos" (após a compra)
  MODIFICAÇÕES v3.6.0: botão "Me lembrar do sorteio" (arquivo de agenda + Google Agenda)
  MODIFICAÇÕES v3.2.0: convite para a demonstração das gaiolas com música
  MODIFICAÇÕES v2.8.0: compra de vários números (botão "Comprar outro número",
@@ -81,6 +82,8 @@
     <p>em prol do Sr. Francisco Felício (Chico da Baixa)</p>
     <p>199 números • R$ 20 cada</p>
     <p>Para a manutenção da cama hospitalar</p>
+    <!-- v3.8.0: compartilhar (folha nativa do celular; alternativa: WhatsApp / copiar link) -->
+    <button type="button" class="js-compartilhar" data-alvo="rifa" style="margin-top:14px;width:auto;background:#fff;color:#006B3F;font-weight:800;padding:12px 22px;border-radius:30px;box-shadow:0 3px 10px rgba(0,0,0,.2);">📤 Compartilhar a rifa</button>
   </header>
 
   <div class="info-box">
@@ -155,6 +158,7 @@
     <p id="paidMsg" style="display:none;color:#28a745;font-weight:600;margin-top:8px;">Obrigado! Envie o comprovante no WhatsApp da Dna Lúcia para confirmar.</p>
     <p id="meusNumeros" style="display:none;font-weight:600;margin:6px 0;"></p>
     <button id="anotherBtn" style="display:none;">➕ Comprar outro número</button>
+    <button id="shareBtnModal" type="button" class="js-compartilhar" data-alvo="rifa" style="display:none;background:#25D366;color:#063;font-weight:800;">📤 Convidar amigos para ajudar</button>
 <button id="confirmBtn">Confirmar e gerar Pix</button>
     <button class="secondary" id="closeModalBtn">Cancelar</button>
   </div>

@@ -2,7 +2,7 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : extras.mjs (complementos da página principal em produção)
  * Autor    : Jossian Brito
- * Versão   : 2.6.0
+ * Versão   : 3.8.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
  *
  * O QUE FAZ (sem alterar o fluxo de reserva do live-client.mjs)
@@ -18,6 +18,9 @@
  *      aceitar cliques (bloqueio visual; o encerramento definitivo das vendas
  *      é feito no painel administrativo).
  *
+ * MODIFICAÇÕES v3.8.0 (2026-11-16)
+ *   - [NOVO] Compartilhar: Web Share API (folha nativa do celular); sem ela,
+ *     mini-menu com WhatsApp e "Copiar link".
  * MODIFICAÇÕES v2.6.0 (2026-11-16)
  *   - [NOVO] Arquivo criado (a CSP do site exige scripts em arquivos próprios).
  * ========================================================================== */
@@ -99,3 +102,43 @@ async function atualizarSorteio() {
   setTimeout(atualizarSorteio, prox);
 }
 atualizarSorteio();
+
+/* ---------------- 4. Compartilhar (v3.8.0) ----------------
+ *   1º navigator.share (Android/iPhone: abre WhatsApp, Instagram, SMS…)
+ *   2º alternativa: mini-menu com WhatsApp (wa.me) e Copiar link.
+ *   Botões: qualquer elemento com a classe .js-compartilhar.            */
+const LINK_RIFA = 'https://rifa-chico-da-baixa.netlify.app/';
+const TEXTO_RIFA = 'Rifa Solidária em prol do Sr. Francisco Felício (Chico da Baixa) 🙏\n' +
+  '199 números a R$ 20 — sorteio ao vivo nas gaiolas em 23/12 às 10h.\nEscolha o seu número e ajude:';
+
+function menuAlternativo(texto, link) {
+  document.getElementById('menuCompartilhar')?.remove();
+  const fundo = document.createElement('div');
+  fundo.id = 'menuCompartilhar';
+  fundo.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:16px';
+  const caixa = document.createElement('div');
+  caixa.style.cssText = 'background:#fff;border-radius:16px;padding:16px;width:100%;max-width:420px;text-align:center';
+  const titulo = document.createElement('strong'); titulo.textContent = 'Compartilhar a rifa';
+  const wa = document.createElement('a');
+  wa.href = 'https://wa.me/?text=' + encodeURIComponent(texto + ' ' + link);
+  wa.target = '_blank'; wa.rel = 'noopener'; wa.textContent = '🟢 Enviar pelo WhatsApp';
+  wa.style.cssText = 'display:block;margin:12px 0 8px;background:#25D366;color:#063;padding:12px;border-radius:10px;font-weight:800;text-decoration:none';
+  const copiar = document.createElement('button'); copiar.type = 'button'; copiar.textContent = '🔗 Copiar link';
+  copiar.onclick = async () => { try { await navigator.clipboard.writeText(link); copiar.textContent = '✅ Link copiado!'; } catch { copiar.textContent = link; } };
+  const fechar = document.createElement('button'); fechar.type = 'button'; fechar.textContent = 'Fechar'; fechar.className = 'secondary';
+  fechar.onclick = () => fundo.remove();
+  fundo.onclick = (e) => { if (e.target === fundo) fundo.remove(); };
+  caixa.append(titulo, wa, copiar, fechar); fundo.append(caixa); document.body.append(fundo);
+}
+
+async function compartilhar() {
+  const dados = { title: 'Rifa Solidária – Chico da Baixa', text: TEXTO_RIFA, url: LINK_RIFA };
+  if (navigator.share) {
+    try { await navigator.share(dados); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }   // a pessoa fechou a folha
+  }
+  menuAlternativo(TEXTO_RIFA, LINK_RIFA);
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.js-compartilhar')) { e.preventDefault(); compartilhar(); }
+});

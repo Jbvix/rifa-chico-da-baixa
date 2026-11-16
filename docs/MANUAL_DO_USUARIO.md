@@ -1,6 +1,6 @@
 # Manual do Usuário — Rifa Solidária Chico da Baixa
 
-- **Autor:** Jossian Brito · **Versão:** 3.7.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
+- **Autor:** Jossian Brito · **Versão:** 3.8.0 · **Data/Hora:** 2026-11-16 13:00 (BRT)
 
 ## Para quem vai comprar
 1. Abra o site e role até a cartela (números **001 a 199**).
@@ -8,7 +8,9 @@
 3. Preencha **nome completo** e **WhatsApp com DDD** → **Confirmar e gerar Pix**.
 4. Copie o código Pix (R$ 20,00 já preenchido) e pague no app do banco.
 5. Toque em **Já paguei** e envie o comprovante no WhatsApp da Dna Lúcia.
-6. **Quer mais números?** Toque em **➕ Comprar outro número**: seu nome e WhatsApp já ficam
+6. **Compartilhe:** toque em **📤 Compartilhar a rifa** (topo) ou, depois de comprar, em
+   **📤 Convidar amigos para ajudar** — abre o WhatsApp, Instagram etc. do seu celular.
+7. **Quer mais números?** Toque em **➕ Comprar outro número**: seu nome e WhatsApp já ficam
    preenchidos. Cada número é um **Pix separado de R$ 20,00** — faça um Pix e toque em
    "Já paguei" para cada número. A lista "Seus números nesta visita" mostra os já informados.
    Se trocar de número antes de tocar em "Já paguei", o site avisa para não perder o anterior.
