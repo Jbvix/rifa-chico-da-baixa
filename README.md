@@ -4,6 +4,20 @@ Página interativa da rifa solidária em prol da manutenção da cama hospitalar
 
 **Site ao vivo:** [https://rifa-chico-da-baixa.netlify.app](https://rifa-chico-da-baixa.netlify.app)
 
+## ⚠️ Estado da produção (leia primeiro)
+
+O site em produção é publicado pela **linha de comando do Netlify** (não por este GitHub). Desde a v2.6.0 a produção é:
+
+| Parte | Origem |
+|---|---|
+| `index.html`, `live-client.mjs`, `extras.mjs`, `regras.html`, `sorteio.html`, `sorteio.js`, `vendor/` | **este repositório** |
+| funções `stats`, `sorteio`, `sorteio-agendado` + `netlify/lib/` | **este repositório** |
+| funções `numeros` (reservas hold/declare), `admin-rifa`, `auth-check`; páginas `painel.html`, `acesso.html`, `auth.*`, `panel.*`, `globos/` | **deploy existente — código-fonte NÃO está neste repositório** |
+
+- `netlify/functions/numeros.js` deste repositório **não está publicado** (modelo de dados antigo). Não publique.
+- Dados reais: store `rifa-state-v2` / chave `state-v2` (tickets com `payment`: declared | verified | not_declared).
+- A CSP do site exige scripts em arquivos próprios e sem CDNs (`script-src 'self'`).
+
 ## Visão Geral
 
 Sistema completo de rifa online com:
@@ -115,6 +129,8 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 2.7.0 | 2026-11-16 | **Publicado em produção.** Gaiola para smartphone (paisagem com painel lateral, aviso de girar) |
+| 2.6.0 | 2026-11-16 | **Publicado em produção** sobre o sistema de reservas existente: Comprados, Online/Visitas, Loteria oculta, sorteio oficial |
 | 2.5.0 | 2026-11-16 | Sorteio OFICIAL pelas gaiolas em 23/12/2026 10h (servidor, sincronizado), ganhador com tel. final, e-mail automático, vendas encerram 9h55, "Comprados" |
 | 2.4.0 | 2026-11-16 | Bola vermelha de AUDITORIA em cada gaiola (devolvida e novo giro); Centena azul |
 | 2.3.0 | 2026-11-16 | Aros cruzados a ±45° nas gaiolas (antes o aro central aparecia de perfil) |

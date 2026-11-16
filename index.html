@@ -1,38 +1,12 @@
 <!DOCTYPE html>
 <!--
-=============================================================================
- Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
- Arquivo  : index.html (página principal / cartela)
- Autor    : Jossian Brito
- Versão   : 2.5.0
- Data/Hora: 2026-11-16 13:00 (BRT, UTC-3)
-
- MODIFICAÇÕES v2.5.0 (2026-11-16)
-  - [TEXTO] "Vendidos/vendido/reservar" → "Comprados/comprado/registrar compra".
-  - [NOVO] Data do sorteio: 23/12/2026 às 10h (horário de Brasília), lida da
-    API /sorteio; link "Assistir ao sorteio ao vivo".
-  - [NOVO] Após o resultado: número sorteado e ganhador (nome + tel. final).
-  - [REGRA] Vendas encerradas às 09:55 de 23/12 (início do sorteio): a
-    cartela fica bloqueada e o servidor recusa novas compras (HTTP 423).
-
- MODIFICAÇÕES v2.0.0 (2026-11-16)
-  - [BUG] Total corrigido para 199 números (001–199). O texto do post/preview
-    (og:description), o cabeçalho e o contador "Disponíveis" diziam 200 e o
-    laço desenhava 001..200.
-  - [BUG] Contadores Online/Visitas: heartbeat com ID de sessão (sid), visita
-    contada 1× por sessão, painel atualizado pela resposta do próprio POST,
-    pausa quando a aba fica oculta e "leave" via sendBeacon ao fechar.
-  - [BUG] Sino de "novo pagamento" tocava a cada carregamento de página
-    (lastSound começava em 0). Agora a 1ª leitura só define a referência.
-  - [BUG] A cartela era redesenhada do zero a cada 10 s mesmo sem mudanças;
-    agora só redesenha quando os dados mudam (menos piscadas no celular).
-  - [OCULTO] Referências ao sorteio pela Loteria Federal ficam ocultas
-    (atributo `hidden`), preservadas no código para reativação futura.
-  - [LGPD] O navegador não guarda mais telefone de compradores; a API só
-    devolve o primeiro nome.
-  - [UX] Campo de telefone com teclado numérico, validação de nome/telefone,
-    mensagens de erro do servidor exibidas ao usuário.
-=============================================================================
+ Rifa Solidária – Sr. Francisco Felício (Chico da Baixa) · index.html
+ Autor: Jossian Brito · Versão 2.6.0 · 2026-11-16 11:10 (BRT)
+ MODIFICAÇÕES v2.6.0 (base: versão em produção de 16/11 09:14)
+  - "Reservados" → "Comprados" (só pagamento informado/verificado)
+  - Online e Visitas reativados (/extras.mjs + função stats)
+  - Loteria Federal oculta; sorteio oficial pelas gaiolas em 23/12/2026 10h
+  - Número sorteado e ganhador (nome + tel. final) vindos da API /sorteio
 -->
 <html lang="pt-BR">
 <head>
@@ -40,7 +14,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rifa Solidária - Sr. Francisco Felício (Chico da Baixa)</title>
 <meta property="og:title" content="Rifa Solidária - Sr. Francisco Felício (Chico da Baixa)">
-<meta property="og:description" content="199 números (001 a 199) a R$ 20 cada. Ajude a manter o conforto do Sr. Francisco. Escolha seu número e pague no Pix.">
+<meta property="og:description" content="199 números a R$ 20 cada. Ajude a manter o conforto do Sr. Francisco. Escolha seu número e pague no Pix.">
 <meta property="og:image" content="https://rifa-chico-da-baixa.netlify.app/poster.jpg">
 <meta property="og:url" content="https://rifa-chico-da-baixa.netlify.app">
 <meta property="og:type" content="website">
@@ -55,69 +29,65 @@
   header p { margin: 4px 0; opacity: 0.95; }
   .info-box { background: white; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; margin: 16px 0; }
-  .num {
-    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  .num { 
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center; 
     border-radius: 8px; font-weight: 600; cursor: pointer; user-select: none;
     background: #e8f5e9; color: #1b5e20; border: 2px solid #c8e6c9;
-    transition: all 0.15s; font: inherit; font-weight: 600; padding: 0;
+    transition: all 0.15s;
   }
-  .num:hover:not(.taken), .num:focus-visible { transform: scale(1.05); background: #c8e6c9; outline: none; }
-  .num.taken { background: #eee; color: #888; border-color: #ddd; cursor: not-allowed; font-size: 0.75rem; text-align: center; padding: 4px; flex-direction: column; }
-  .num.taken small { font-size: 0.65rem; opacity: .8; }
-  .num.fora { border-style: dashed; border-color: #f9a825; }
-  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+  .num:hover:not(.taken) { transform: scale(1.05); background: #c8e6c9; }
+  .num.taken { flex-direction: column; gap: 4px; background: #eee; color: #555; border-color: #ddd; cursor: not-allowed; font-size: 0.75rem; text-align: center; padding: 4px; }
+  .num.selected { background: #006B3F; color: white; border-color: #004d2c; }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
   .modal.open { display: flex; }
-  .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%; text-align: center; max-height: 100%; overflow-y: auto; }
+  .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%; text-align: center; }
   .pix-box { background: #f0f0f0; border-radius: 12px; padding: 16px; margin: 16px 0; font-family: monospace; font-size: 0.75rem; word-break: break-all; position: relative; }
   .pix-logo { height: 28px; margin-bottom: 8px; }
   button { background: #006B3F; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 8px; }
-  button:disabled { opacity: .6; cursor: wait; }
   button.secondary { background: #555; }
   input { width: 100%; padding: 12px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-  .erro { color: #C8102E; font-size: .9rem; min-height: 1.2em; margin: 4px 0; }
-  .stats { display: flex; justify-content: space-around; background: white; padding: 12px; border-radius: 12px; margin-bottom: 16px; text-align: center; }
-  .stats strong { font-size: 1.3rem; transition: color .3s; }
-  .stats strong.pulse { color: #C8102E; }
-  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#28a745; margin-right:4px; animation: blink 1.6s infinite; }
-  @keyframes blink { 50% { opacity: .25; } }
+  .stats { display: flex; justify-content: space-around; background: white; padding: 12px; border-radius: 12px; margin-bottom: 16px; }
   .footer { text-align: center; margin-top: 24px; font-size: 0.9rem; color: #555; }
-  .aviso-rede { display:none; background:#fff3cd; color:#856404; padding:10px; border-radius:8px; margin-bottom:16px; text-align:center; }
   .scroll-hint {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: #006B3F; color: white; padding: 12px 20px; border-radius: 30px;
-    font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 50;
-    animation: bounce 1.5s infinite; cursor: pointer; transition: opacity .5s;
-    white-space: nowrap; max-width: calc(100% - 32px); text-align: center; /* v2.2.0: centralizado, 1 linha */
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #006B3F;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 50;
+    animation: bounce 1.5s infinite;
+    cursor: pointer;
   }
   @keyframes bounce {
     0%, 100% { transform: translateX(-50%) translateY(0); }
     50% { transform: translateX(-50%) translateY(-8px); }
   }
-  @media (prefers-reduced-motion: reduce) { .scroll-hint, .dot { animation: none; } }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <img src="poster.jpg" alt="Rifa Solidária Sr. Francisco Felício" style="width:100%;max-width:480px;border-radius:16px;margin:0 auto 16px;display:block;box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-    <h1>RIFA SOLIDÁRIA</h1>
+    
+    <figure id="poster-original" style="margin:0 auto 16px;max-width:480px;"><img src="/poster.jpg" alt="Pôster original da Rifa Solidária do Sr. Francisco Felício, Chico da Baixa" width="784" height="1168" style="display:block;width:100%;height:auto;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.15);"><figcaption style="font-size:.9rem;line-height:1.4;margin-top:8px;">Correção: cartela de 001 a 199, total 199 números.</figcaption></figure><h1>RIFA SOLIDÁRIA</h1>
     <p>em prol do Sr. Francisco Felício (Chico da Baixa)</p>
-    <p><span class="js-total">199</span> números (001 a <span class="js-total">199</span>) • R$ 20 cada</p>
+    <p>199 números • R$ 20 cada</p>
     <p>Para a manutenção da cama hospitalar</p>
   </header>
 
   <div class="info-box">
     <strong>Responsável:</strong> Dna Lúcia (esposa)<br>
     <strong>WhatsApp:</strong> <a href="https://wa.me/5588993843874">88993843874</a><br>
-    <strong>Chave Pix:</strong> +5588993843874
   </div>
 
-  <div id="avisoRede" class="aviso-rede" role="status">⚠️ Sem conexão com o servidor. Tentando novamente…</div>
-
-  <div class="stats" aria-live="polite">
+  <div class="stats">
     <div><strong id="available">199</strong><br>Disponíveis</div>
     <div><strong id="sold">0</strong><br>Comprados</div>
-    <div><strong id="online">1</strong><br><span class="dot" aria-hidden="true"></span>Online</div>
+    <div><strong id="online">1</strong><br>Online</div>
     <div><strong id="visits">0</strong><br>Visitas</div>
   </div>
 
@@ -135,401 +105,53 @@
 
   <div class="info-box" style="background:#fff8e1;border-left:4px solid #f9a825;">
     <strong>🎫 Sorteio oficial pelas gaiolas</strong><br><br>
-    O resultado sai nas 3 gaiolas virtuais, ao vivo, com bola vermelha de auditoria em cada uma.
+    O resultado sai nas 3 gaiolas, ao vivo, com uma bola vermelha de auditoria em cada uma.
     As compras encerram às 9h55 do dia do sorteio.<br>
-    <a href="regras.html" style="color:#006B3F;font-weight:600;">Ver regras e horários →</a><br><br>
-    <!-- [OCULTO v2.0.0] Sorteio pela Loteria Federal. Para reativar, remova o atributo `hidden`. -->
-    <span hidden data-loteria>
-      O sorteio será baseado nos 3 últimos dígitos da Loteria Federal.<br>
-      <a href="regras.html" style="color:#006B3F;font-weight:600;">Clique aqui para ver as regras completas e o exemplo →</a><br><br>
-    </span>
-    <strong>Data do sorteio:</strong> <span id="drawDate">23/12/2026 às 10h (horário de Brasília)</span><br>
-    <span hidden data-loteria><strong>Resultado da Loteria Federal:</strong> <span id="lotteryResult">Aguardando</span><br></span>
+    <a href="/regras" style="color:#006B3F;font-weight:600;">Ver regras e horários →</a><br><br>
+    <strong>Data do sorteio:</strong> <span id="drawDate">23/12/2026 às 10:00 (horário de Brasília)</span><br>
     <strong>Número Sorteado:</strong> <span id="drawnNumber">-</span><br>
-    <strong>Ganhador:</strong> <span id="winnerName">Aguardando resultado</span><br><br>
-    <a href="sorteio.html" style="color:#006B3F;font-weight:600;">🎱 Assistir ao sorteio ao vivo (gaiolas giram a partir das 9h55) →</a>
+    <strong>Ganhador:</strong> <span id="winnerName">Aguardando resultado</span>
+    <!-- [OCULTO v2.6.0] Loteria Federal: "O sorteio será baseado nos 3 últimos dígitos da Loteria Federal (números de 001 a 199)." -->
   </div>
 
-  <div id="grid" class="grid" aria-label="Cartela de números"></div>
-
-  <div id="vendasEncerradas" class="aviso-rede" style="display:none;background:#fdecea;color:#8a1020;">🔒 Vendas encerradas — o sorteio já começou.</div>
+  <div class="info-box" style="font-size:0.9rem">Para preservar a privacidade dos participantes, a cartela exibe apenas os quatro últimos dígitos do telefone. Esta é uma iniciativa familiar, sem fins lucrativos, destinada a ajudar no conserto da cama do Chico da Baixa.</div>
+  <section style="max-width:520px;margin:16px auto;padding:18px;background:#e6f4ec;border:2px solid #006b3f;border-radius:14px;text-align:center;"><a href="/sorteio.html" style="display:block;color:#006b3f;font-size:1.2rem;font-weight:800;">🎱 Sorteio oficial ao vivo — 23/12 às 10h</a><p style="margin:8px 0 0;">As gaiolas começam a girar às 9h55. Centena às 9:59:40, dezena às 9:59:50 e unidade às 10:00:00.</p></section><div id="vendasEncerradas" style="display:none;background:#fdecea;color:#8a1020;padding:10px;border-radius:8px;margin:12px 0;text-align:center;font-weight:600">🔒 Compras encerradas — o sorteio já começou.</div><div id="grid" class="grid"></div>
 
   <div class="footer">
-    Sorteio em 23/12/2026 às 10h (horário de Brasília).<br>
+    Sorteio oficial em 23/12/2026 às 10h (horário de Brasília).<br>
     Rifa solidária • Transparência total
   </div>
 </div>
 
-<div class="scroll-hint" id="scrollHint" onclick="document.getElementById('grid').scrollIntoView({behavior:'smooth'})">
+<div class="scroll-hint" id="scrollHint">
   ⬇️ Role para baixo para ver os números
 </div>
 
-<!-- Modal de compra -->
-<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+<!-- Modal -->
+<div id="modal" class="modal">
   <div class="modal-content">
-    <h2 id="modalTitle">Número <span id="selectedNum"></span></h2>
+    <h2>Número <span id="selectedNum"></span></h2>
     <p>Valor: <strong>R$ 20,00</strong></p>
-    <input id="name" placeholder="Seu nome completo" autocomplete="name" maxlength="80" required>
-    <input id="phone" type="tel" inputmode="tel" placeholder="Seu WhatsApp (com DDD)" autocomplete="tel" maxlength="20" required>
-    <p id="formErro" class="erro" role="alert"></p>
+    <input id="name" placeholder="Seu nome completo" required>
+    <input id="phone" placeholder="Seu WhatsApp (com DDD)" required>
     <div id="pixArea" style="display:none;">
-      <img class="pix-logo" src="https://logospng.org/download/pix/logo-pix-1024.png" alt="Pix" style="height:36px;margin:8px auto;display:block;">
+      
       <p style="font-weight:600;margin:8px 0;">Pix Copia e Cola • R$ 20,00</p>
       <div class="pix-box" id="pixCode" style="font-size:0.7rem;max-height:120px;overflow:auto;"></div>
-      <button onclick="copyPix()">Copiar código Pix</button>
+      <button id="copyPixBtn">Copiar código Pix</button>
       <p style="font-size:0.85rem;color:#555;margin-top:8px;">Maria Lúcia Leitão do Nascimento • Nubank<br>O valor de R$ 20 já vai preenchido<br><strong>Creditado diretamente na conta da Sra. Maria Lúcia</strong></p>
+      <p style="background:#fff3cd;color:#856404;padding:10px;border-radius:8px;margin-top:12px;font-weight:600;">⬆️ Role a tela para cima para ver o Pix e finalizar o pagamento</p>
       <p id="countdown" style="font-size:1.1rem;font-weight:bold;color:#c8102e;margin:12px 0;">Tempo restante: 15:00</p>
-      <button id="paidBtn" onclick="confirmPaid()" style="background:#28a745;">Já paguei</button>
-      <p id="paidMsg" style="display:none;color:#28a745;font-weight:600;margin-top:8px;"></p>
+      <button id="paidBtn" style="background:#28a745;">Já paguei</button>
+      
     </div>
-    <button id="confirmBtn" onclick="confirmNumber()">Confirmar e gerar Pix</button>
-    <button class="secondary" onclick="closeModal()">Cancelar</button>
+    <p id="paidMsg" style="display:none;color:#28a745;font-weight:600;margin-top:8px;">Obrigado! Envie o comprovante no WhatsApp da Dna Lúcia para confirmar.</p>
+<button id="confirmBtn">Confirmar e gerar Pix</button>
+    <button class="secondary" id="closeModalBtn">Cancelar</button>
   </div>
 </div>
 
-<script>
-/* ===========================================================================
- * Estado global
- *   TOTAL  : quantidade de bilhetes. O servidor é a fonte da verdade
- *            (GET devolve `total`); 199 é só o valor inicial.
- *   sold   : { "7": { name:"Ana", date } } — só primeiro nome (LGPD).
- * ========================================================================= */
-let TOTAL = 199;
-let sold = {};
-let foraDaFaixa = [];
-let selected = null;
-let ultimaAssinatura = '';   // "impressão digital" da cartela para evitar redesenho
-const API_NUM = '/.netlify/functions/numeros';
-const API_STATS = '/.netlify/functions/stats';
-const pad = (n) => String(n).padStart(3, '0');
-
-function avisoRede(mostrar) {
-  document.getElementById('avisoRede').style.display = mostrar ? 'block' : 'none';
-}
-
-async function loadSold() {
-  try {
-    const res = await fetch(API_NUM, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    avisoRede(false);
-    TOTAL = data.total || TOTAL;
-    sold = data.sold || {};
-    foraDaFaixa = data.foraDaFaixa || [];
-    definirVendasEncerradas(!!data.vendasEncerradas);
-    // Só redesenha se algo mudou. Analogia: o radar só "pinta" um novo eco
-    // quando o alvo realmente se moveu — evita cintilação na tela.
-    const assinatura = TOTAL + '|' + JSON.stringify(sold);
-    if (assinatura !== ultimaAssinatura) {
-      ultimaAssinatura = assinatura;
-      renderNumbers();
-      updateStats();
-    }
-  } catch (e) {
-    console.error('Erro ao carregar números', e);
-    avisoRede(true);
-    if (!ultimaAssinatura) renderNumbers();
-  }
-}
-
-function criarCelula(i, extra) {
-  const el = document.createElement('button');
-  el.type = 'button';
-  el.className = 'num' + (extra ? ' fora' : '');
-  el.dataset.num = i;
-  const reg = sold[i];
-  if (reg) {
-    el.classList.add('taken');
-    el.disabled = true;
-    const rotulo = document.createElement('small');
-    rotulo.textContent = pad(i);            // textContent: imune a injeção de HTML
-    el.append(rotulo, document.createTextNode(reg.name || 'Comprado'));
-    el.setAttribute('aria-label', 'Número ' + pad(i) + ' comprado');
-  } else {
-    el.textContent = pad(i);
-    el.setAttribute('aria-label', 'Número ' + pad(i) + ' disponível');
-    el.onclick = () => selectNumber(i);
-  }
-  return el;
-}
-
-function renderNumbers() {
-  document.querySelectorAll('.js-total').forEach((s) => (s.textContent = pad(TOTAL)));
-  const frag = document.createDocumentFragment();
-  for (let i = 1; i <= TOTAL; i++) frag.appendChild(criarCelula(i, false));
-  // Registros antigos fora da faixa 001..TOTAL não somem: aparecem com borda
-  // tracejada para a organização decidir (ex.: alguém que comprou o "200").
-  foraDaFaixa.forEach((n) => frag.appendChild(criarCelula(n, true)));
-  const grid = document.getElementById('grid');
-  grid.replaceChildren(frag);
-}
-
-function selectNumber(n) {
-  if (vendasEncerradas) return alert('Vendas encerradas: o sorteio já começou.');
-  if (sold[n]) return alert('Número já escolhido');
-  selected = n;
-  document.getElementById('selectedNum').textContent = pad(n);
-  document.getElementById('pixArea').style.display = 'none';
-  document.getElementById('confirmBtn').style.display = 'block';
-  document.getElementById('formErro').textContent = '';
-  document.getElementById('modal').classList.add('open');
-  document.getElementById('name').focus();
-}
-
-// Validação no cliente (o servidor valida de novo — nunca confie só no cliente).
-function lerFormulario() {
-  const name = document.getElementById('name').value.replace(/\s+/g, ' ').trim();
-  const phone = document.getElementById('phone').value.replace(/\D/g, '');
-  const erro = document.getElementById('formErro');
-  if (name.length < 3) { erro.textContent = 'Informe seu nome completo.'; return null; }
-  if (phone.length < 10 || phone.length > 13) { erro.textContent = 'Informe um WhatsApp válido com DDD.'; return null; }
-  erro.textContent = '';
-  return { name, phone };
-}
-
-function confirmNumber() {
-  if (!lerFormulario()) return;
-  // Mostra o Pix e o botão "Já paguei" (ainda não grava o número)
-  const pixCode = "00020126360014BR.GOV.BCB.PIX0114+5588993843874520400005303986540520.005802BR5925Maria Lucia Leitao do Nas6009SAO PAULO621405104YQ3wftgHy630472C3";
-  document.getElementById('pixCode').textContent = pixCode;
-  document.getElementById('pixArea').style.display = 'block';
-  document.getElementById('confirmBtn').style.display = 'none';
-  startCountdown();
-}
-
-async function confirmPaid() {
-  const dados = lerFormulario();
-  if (!dados) return;
-  const btn = document.getElementById('paidBtn');
-  btn.disabled = true;
-  try {
-    const res = await fetch(API_NUM, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number: selected, ...dados })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      document.getElementById('formErro').textContent = data.error || 'Erro ao registrar a compra.';
-      if (res.status === 409) loadSold();
-      return;
-    }
-
-    btn.style.display = 'none';
-    const msg = document.getElementById('paidMsg');
-    msg.style.display = 'block';
-    msg.textContent = 'Número ' + pad(selected) + ' marcado como pago! Envie o comprovante no WhatsApp da Dna Lúcia.';
-    clearInterval(countdownInterval);
-    document.getElementById('countdown').textContent = 'Número marcado como pago!';
-
-    sold[selected] = { name: data.name };
-    ultimaAssinatura = '';
-    loadSold();
-    // O servidor já registrou o pagamento; marcamos a referência para este
-    // aparelho não tocar o sino duas vezes.
-    lastPaymentTime = Date.now();
-    playSound();
-
-    setTimeout(() => {
-      closeModal();
-      document.getElementById('pixArea').style.display = 'none';
-      document.getElementById('confirmBtn').style.display = 'block';
-      msg.style.display = 'none';
-      btn.style.display = 'block';
-    }, 2500);
-  } catch (e) {
-    document.getElementById('formErro').textContent = 'Erro de conexão. Tente novamente.';
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function copyPix() {
-  const code = document.getElementById('pixCode').textContent;
-  navigator.clipboard.writeText(code).then(() => alert('Código Pix copiado!'));
-}
-
-let countdownInterval;
-function startCountdown() {
-  let time = 15 * 60; // 15 minutos
-  const el = document.getElementById('countdown');
-  clearInterval(countdownInterval);
-  countdownInterval = setInterval(() => {
-    const min = Math.floor(time / 60);
-    const sec = time % 60;
-    el.textContent = `Tempo restante: ${min}:${sec.toString().padStart(2,'0')}`;
-    if (time <= 0) {
-      clearInterval(countdownInterval);
-      el.textContent = 'Tempo esgotado. Entre em contato no WhatsApp.';
-    }
-    time--;
-  }, 1000);
-}
-
-function closeModal() {
-  clearInterval(countdownInterval);
-  document.getElementById('modal').classList.remove('open');
-  document.getElementById('name').value = '';
-  document.getElementById('phone').value = '';
-}
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-
-// Disponíveis = TOTAL − comprados DENTRO da faixa (fora da faixa não desconta).
-function updateStats() {
-  const soldCount = Object.keys(sold).filter((n) => +n >= 1 && +n <= TOTAL).length;
-  setContador('sold', soldCount);
-  setContador('available', TOTAL - soldCount);
-}
-
-// Atualiza um contador com um "pulso" visual quando o valor muda.
-function setContador(id, valor) {
-  const el = document.getElementById(id);
-  if (el.textContent === String(valor)) return;
-  el.textContent = valor;
-  el.classList.add('pulse');
-  setTimeout(() => el.classList.remove('pulse'), 600);
-}
-
-/* ===========================================================================
- * Presença (Online) e Visitas
- *   sid: identificador aleatório da aba, guardado no sessionStorage.
- *   Heartbeat a cada 15 s; o servidor considera online quem bateu nos
- *   últimos 45 s (3 batidas). Aba oculta = sem heartbeat → sai da contagem.
- * ========================================================================= */
-function obterSid() {
-  try {
-    let sid = sessionStorage.getItem('rifa-sid');
-    if (!sid) {
-      sid = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
-      sessionStorage.setItem('rifa-sid', sid);
-    }
-    return sid;
-  } catch { return 'anon-' + Date.now() + Math.random().toString(36).slice(2, 10); }
-}
-const SID = obterSid();
-let lastPaymentTime = null; // null = ainda sem referência (não toca o sino)
-
-function aplicarStats(data) {
-  if (!data || data.error) return;
-  setContador('online', data.online || 1);
-  setContador('visits', data.visits || 0);
-  const t = data.lastPayment && data.lastPayment.time;
-  if (lastPaymentTime === null) {
-    lastPaymentTime = t || 0;               // 1ª leitura: só referência
-  } else if (t && t > lastPaymentTime) {
-    lastPaymentTime = t;
-    playSound();
-    loadSold();                             // alguém comprou: atualiza já
-  }
-}
-
-async function postStats(body) {
-  try {
-    const res = await fetch(API_STATS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (res.ok) aplicarStats(await res.json());
-  } catch (e) {}
-}
-
-async function updateCounters() {
-  try {
-    const res = await fetch(API_STATS, { cache: 'no-store' });
-    if (res.ok) aplicarStats(await res.json());
-  } catch (e) {}
-}
-
-function playSound() {
-  const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-bell-notification-933.mp3');
-  audio.volume = 0.6;
-  audio.play().catch(() => {});
-}
-
-// Música de fundo instrumental gospel (inicia após a 1ª interação do usuário)
-const bgMusic = new Audio('https://cdn.pixabay.com/audio/2025/05/18/audio_343269.mp3');
-bgMusic.loop = true;
-bgMusic.volume = 0.15;
-document.addEventListener('click', () => {
-  if (bgMusic.paused) bgMusic.play().catch(() => {});
-}, { once: true });
-
-// Visita: 1× por sessão de navegador (recarregar a página não infla o número).
-(function registrarVisita() {
-  let jaContou = false;
-  try { jaContou = sessionStorage.getItem('rifa-visita') === '1'; sessionStorage.setItem('rifa-visita', '1'); } catch {}
-  if (jaContou) postStats({ action: 'heartbeat', sid: SID });
-  else postStats({ action: 'visit' }).then(() => postStats({ action: 'heartbeat', sid: SID }));
-})();
-
-// Laços periódicos — pausam quando a aba está oculta (economia de bateria e
-// de chamadas às functions).
-setInterval(() => { if (!document.hidden) postStats({ action: 'heartbeat', sid: SID }); }, 15000);
-setInterval(() => { if (!document.hidden) { loadSold(); updateCounters(); } }, 10000);
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    navigator.sendBeacon && navigator.sendBeacon(API_STATS, JSON.stringify({ action: 'leave', sid: SID }));
-  } else {
-    postStats({ action: 'heartbeat', sid: SID });
-    loadSold();
-  }
-});
-window.addEventListener('pagehide', () => {
-  navigator.sendBeacon && navigator.sendBeacon(API_STATS, JSON.stringify({ action: 'leave', sid: SID }));
-});
-
-/* ===========================================================================
- * SORTEIO OFICIAL (v2.5.0) — data, encerramento de vendas e resultado
- *   Fonte: API /sorteio (mesma usada pela página da gaiola).
- *   Consulta a cada 60 s; a cada 5 s perto das 10h do dia 23/12.
- * ========================================================================= */
-let vendasEncerradas = false;
-function definirVendasEncerradas(v) {
-  if (v === vendasEncerradas) return;
-  vendasEncerradas = v;
-  document.getElementById('vendasEncerradas').style.display = v ? 'block' : 'none';
-  document.querySelectorAll('#grid .num:not(.taken)').forEach((el) => { el.disabled = v; });
-}
-
-async function atualizarSorteio() {
-  let prox = 60000;
-  try {
-    const res = await fetch('/.netlify/functions/sorteio', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-    const fmt = new Date(d.agenda.fim).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo',
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    document.getElementById('drawDate').textContent = fmt.replace(',', ' às') + ' (horário de Brasília)';
-    definirVendasEncerradas(d.agora >= d.agenda.inicio);
-    if (d.numero != null) {
-      document.getElementById('drawnNumber').textContent = pad(d.numero);
-      document.getElementById('winnerName').textContent = d.ganhador
-        ? d.ganhador.nome + (d.ganhador.telefoneFinal ? ' • tel. final ' + d.ganhador.telefoneFinal : '')
-        : 'Número não comprado — sem ganhador';
-      return;                                         // resultado final: para de consultar
-    }
-    if (d.fase !== 'aguardando' || d.agenda.inicio - d.agora < 120000) prox = 5000;
-  } catch (e) {}
-  setTimeout(atualizarSorteio, prox);
-}
-
-loadSold();
-atualizarSorteio();
-
-// Auto-scroll suave após carregar a página para mostrar o conteúdo abaixo
-setTimeout(() => {
-  const hint = document.getElementById('scrollHint');
-  if (!hint) return;
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    window.scrollTo({ top: 180, behavior: 'smooth' });
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 2500);
-  }
-  setTimeout(() => {
-    hint.style.opacity = '0';
-    setTimeout(() => hint.style.display = 'none', 500);
-  }, 12000);
-}, 1500);
-</script>
+<script type="module" src="/live-client.mjs"></script>
+<script type="module" src="/extras.mjs"></script>
 </body>
 </html>

@@ -2,8 +2,8 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : netlify/lib/sorteio-core.js  (núcleo do SORTEIO OFICIAL)
  * Autor    : Jossian Brito
- * Versão   : 2.5.0
- * Data/Hora: 2026-11-16 13:00 (BRT, UTC-3)
+ * Versão   : 2.6.0
+ * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
  *
  * CRONOGRAMA OFICIAL (horário de Brasília, UTC−3)
  *   23/12/2026 09:55:00  gaiolas começam a girar  (vendas encerradas)
@@ -29,6 +29,13 @@
  *   Logo a gaiola i começa a ser animada em
  *     S_i = T_i − (1,8 s + 4,0 s · a_i)        a_i = nº de auditorias
  *   Com a_i ≤ 2: S_i ≥ T_i − 9,8 s > T_(i−1)  → nunca atropela a gaiola anterior.
+ *
+ * MODIFICAÇÕES v2.6.0 (2026-11-16)
+ *   - [PRODUÇÃO] Apuração lê o sistema de reservas em produção:
+ *     store "rifa-state-v2", chave "state-v2", tickets["007"] =
+ *     { name, phone, payment: "declared" | "verified" | "not_declared", ... }.
+ *     Só conta como comprado: payment "declared" ou "verified".
+ *     Reserva sem pagamento informado ("not_declared") NÃO concorre.
  *
  * MODIFICAÇÕES v2.5.0 (2026-11-16)
  *   - [NOVO] Arquivo criado: agenda, geração, liberação progressiva,
@@ -100,15 +107,20 @@ export async function obterResultado(ag, agora) {
 export async function apurar(ag, agora) {
   const res = await obterResultado(ag, agora);
   if (!res || agora < ag.fim || res.apuradoEm) return res;
-  const vendidos = (await getStore({ name: "rifa-numeros", consistency: "strong" })
-    .get("sold", { type: "json" })) || {};
-  const reg = vendidos[res.numero];
+  const estado = (await getStore({ name: "rifa-state-v2", consistency: "strong" })
+    .get("state-v2", { type: "json" })) || {};
+  const tickets = estado.tickets || {};
+  const pago = (t) => t && (t.payment === "declared" || t.payment === "verified");
+  const comprados = Object.values(tickets).filter(pago);
+  const t = tickets[String(res.numero).padStart(3, "0")];
+  const reg = pago(t) ? { name: String(t.name || "").replace(/\s+/g, " ").trim(), phone: t.phone } : null;
   const r = await atualizarJSON(loja(), chave(ag, "resultado"), (atual) => {
     if (atual.apuradoEm) return { abortar: "ja-apurado" };
     atual.apuradoEm = new Date(agora).toISOString();
-    atual.totalVendidos = Object.keys(vendidos).length;
+    atual.totalVendidos = comprados.length;
+    const digitos = String(reg?.phone || "").replace(/\D/g, "");
     atual.ganhador = reg
-      ? { nome: reg.name, telefone: reg.phone || "", telefoneFinal: String(reg.phone || "").slice(-4) }
+      ? { nome: reg.name, telefone: reg.phone || "", telefoneFinal: digitos.slice(-4) }
       : null;
     return { valor: atual, resultado: atual };
   }, res);
