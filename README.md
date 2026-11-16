@@ -129,6 +129,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.0.0 | 2026-11-16 | **Publicado.** Física: 6 esferas fixas de mistura por gaiola; comporta + tubo de vidro com rolamento a=(5/7)g·senθ até copo com lupa; auditoria devolvida por cima e cai pela gravidade |
 | 2.9.0 | 2026-11-16 | **Publicado.** Vozes ElevenLabs (Jossian: abertura/agradecimento; Carla: auditoria/centena/dezena/unidade) e trilha gospel instrumental nova na gaiola |
 | 2.8.0 | 2026-11-16 | **Publicado.** Compra de vários números por pessoa (Pix separado por número), botão "Comprar outro número", aviso de reserva pendente |
 | 2.7.0 | 2026-11-16 | **Publicado em produção.** Gaiola para smartphone (paisagem com painel lateral, aviso de girar) |

@@ -2,8 +2,20 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 2.9.0
+ * Versão   : 3.0.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.0.0 (2026-11-16 13:30 BRT): MISTURA E TUBO DE SAÍDA (física)
+ *   - 6 esferas fixas (pinos) presas ao tambor de cada gaiola, girando com
+ *     ele; colidem com as bolas pela mesma lei da parede (reflexão + arraste
+ *     da superfície móvel ω × r) → embaralhamento muito maior.
+ *   - O ângulo do tambor passou a ser integrado dentro do passo físico
+ *     (1/240 s), para os pinos não "saltarem" entre quadros.
+ *   - Saída da bola: comporta no fundo + tubo de vidro até um copo com lupa
+ *     na frente da base. No tubo, a bola ROLA: a = (5/7)·g·sen θ (esfera
+ *     maciça rolando sem deslizar) menos resistência ao rolamento.
+ *   - Fim da bola "voando" e crescendo no ar; a auditoria é devolvida por
+ *     cima da gaiola e cai de volta pela gravidade.
+ *   - Modelo original (gravidade, parede, arraste, bola-bola) inalterado.
  * MODIFICAÇÕES v2.9.0 (2026-11-16 12:50 BRT): VOZES E TRILHA GRAVADAS
  *   - Vozes ElevenLabs: Jossian Brito (voz clonada) na abertura e no
  *     agradecimento; Carla (institucional) em auditoria/centena/dezena/unidade.
@@ -28,6 +40,11 @@ const BALL_R = 0.2;                      // raio da bola
 const CAGE_Y = 0.9;                      // altura do centro das gaiolas
 const CAGE_X = [-3.3, 0, 3.3];           // posição das 3 gaiolas
 const PISO_Y = -1.5;                     // altura do tampo da mesa (entorno)
+const PINO_R = 0.13;                     // raio das esferas fixas de mistura (v3.0.0)
+// Centro da bola ao longo do tubo, em coordenadas da gaiola (centro = 0,0,0):
+// comporta no fundo → queda curta → rampa suave até o copo na frente da base.
+const TUBO_PONTOS = [[0, -1.25, 0], [0, -1.6, 0.15], [0.08, -1.68, 0.6], [0.17, -1.73, 1.0], [0.25, -1.76, 1.42]]
+  .map(([x, y, z]) => new THREE.Vector3(x, y, z));
 const CORES = [0x1565C0, 0x00884f, 0xf2b705]; // centena (azul), dezena, unidade
 const COR_AUDITORIA = 0xC8102E;          // vermelho exclusivo da bola de auditoria
 const AUDITORIA = 'A';                   // rótulo da bola de auditoria
@@ -294,9 +311,9 @@ function criarGaiola(idx) {
   pega.rotation.z = Math.PI / 2; pega.position.set(CAGE_R + 0.6, 0.38, 0); giro.add(pega);
 
   // Placa frontal na base
-  const placa = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.42),
+  const placa = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.31),   // v3.0.0: menor e à esquerda do copo
     new THREE.MeshBasicMaterial({ map: texturaPlaca(ROTULOS[idx], (idx === 0 ? '0 – 1' : '0 – 9') + ' + auditoria', CORES[idx]), transparent: true }));
-  placa.position.set(0, yMesa + 0.34, 0.95); placa.rotation.x = -0.12; grupo.add(placa);
+  placa.position.set(-0.74, yMesa + 0.3, 0.95); placa.rotation.x = -0.12; grupo.add(placa);
 
   // Sombra de contato: disco com gradiente radial, logo acima da mesa
   const sombra = new THREE.Mesh(new THREE.PlaneGeometry(CAGE_R * 3.2, CAGE_R * 1.9),
@@ -308,10 +325,42 @@ function criarGaiola(idx) {
   holofote.position.set(CAGE_X[idx] * 0.6, CAGE_Y + 5.5, 3.2);
   holofote.target = grupo; scene.add(holofote);
 
-  // Pódio: anel luminoso que aparece sob a bola extraída
-  const podio = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 10, 48),
+  // ---------- MISTURA: esferas fixas presas ao tambor (v3.0.0) ----------
+  // 6 pinos em anel (raio 0,62·R), alternando ±0,38·R no eixo x, a cada 60°.
+  const matPino = new THREE.MeshStandardMaterial({ color: 0xd9b44a, metalness: 0.85, roughness: 0.25 });
+  const pinosLocal = [];
+  for (let k = 0; k < 6; k++) {
+    const phi = k * Math.PI / 3, rr = 0.62 * CAGE_R, x = (k % 2 ? 1 : -1) * 0.38 * CAGE_R;
+    const pl = new THREE.Vector3(x, rr * Math.cos(phi), rr * Math.sin(phi));
+    pinosLocal.push(pl);
+    const pino = new THREE.Mesh(new THREE.SphereGeometry(PINO_R, 16, 12), matPino);
+    pino.position.copy(pl); giro.add(pino);
+    // haste que prende o pino ao arame (visual)
+    const haste = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CAGE_R - rr, 6), matPino);
+    haste.position.copy(pl).multiplyScalar((rr + (CAGE_R - rr) / 2) / rr); haste.position.x = x;
+    haste.lookAt(new THREE.Vector3(x, 0, 0)); haste.rotateX(Math.PI / 2); giro.add(haste);
+  }
+
+  // ---------- SAÍDA: comporta + tubo de vidro + copo com lupa (v3.0.0) ----------
+  const vidro = new THREE.MeshStandardMaterial({ color: 0xcfefff, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide });
+  const comporta = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.035, 8, 32), metalEsc);
+  comporta.rotation.x = Math.PI / 2; comporta.position.set(0, -CAGE_R - 0.02, 0); grupo.add(comporta);
+  const caminho = new THREE.CatmullRomCurve3(TUBO_PONTOS.map((q) => q.clone()));
+  grupo.add(new THREE.Mesh(new THREE.TubeGeometry(caminho, 48, BALL_R + 0.05, 16, false), vidro));
+  const fimTubo = TUBO_PONTOS[TUBO_PONTOS.length - 1];
+  const copo = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.2, 24, 1, true), metalEsc);
+  copo.position.set(fimTubo.x, fimTubo.y - 0.12, fimTubo.z); grupo.add(copo);
+  const fundo = new THREE.Mesh(new THREE.CircleGeometry(0.24, 24), metalEsc);
+  fundo.rotation.x = -Math.PI / 2; fundo.position.set(fimTubo.x, fimTubo.y - 0.21, fimTubo.z); grupo.add(fundo);
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, fimTubo.y - 0.21 - yMesa, 8), metal);
+  poste.position.set(fimTubo.x, (fimTubo.y - 0.21 + yMesa) / 2, fimTubo.z); grupo.add(poste);
+  const lupa = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), vidro);
+  lupa.position.set(fimTubo.x, fimTubo.y - 0.1, fimTubo.z); grupo.add(lupa);
+
+  // Pódio: anel luminoso em volta do copo (aceso na extração)
+  const podio = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 10, 48),
     new THREE.MeshBasicMaterial({ color: CORES[idx], transparent: true, opacity: 0 }));
-  podio.rotation.x = Math.PI / 2; podio.position.set(0, CAGE_R + 0.32, 0.6); grupo.add(podio);
+  podio.rotation.x = Math.PI / 2; podio.position.set(fimTubo.x, fimTubo.y - 0.12, fimTubo.z); grupo.add(podio);
 
   // Bolas: centena só tem 0 e 1 (faixa 001..199); dezena e unidade 0..9.
   // Bolas: centena 0–1, dezena e unidade 0–9, e em TODAS uma auditoria vermelha.
@@ -325,7 +374,8 @@ function criarGaiola(idx) {
     bolas.push(b);
   });
 
-  gaiolas.push({ grupo, giro, omega: 0, alvo: 0, aro, holofote, podio, foco: 0, focoAlvo: 0, podioAlvo: 0 });
+  gaiolas.push({ grupo, giro, omega: 0, alvo: 0, ang: 0, aro, holofote, podio, foco: 0, focoAlvo: 0, podioAlvo: 0,
+                 pinosLocal, pinosMundo: pinosLocal.map(() => new THREE.Vector3()), caminho, comprimento: caminho.getLength() });
 }
 
 // Coloca a bola em um ponto aleatório da metade inferior da gaiola.
@@ -334,7 +384,8 @@ function reposicionar(b) {
   const r = (CAGE_R - BALL_R) * 0.7;
   b.p.set(c.x + (Math.random() - 0.5) * r, c.y - Math.random() * r * 0.8, (Math.random() - 0.5) * r);
   b.v.set(0, 0, 0);
-  b.livre = true;
+  b.livre = true; b.guia = false;
+  tubo.delete(b);
   b.mesh.scale.setScalar(1);
   b.mesh.position.copy(b.p);
 }
@@ -354,14 +405,34 @@ function reposicionar(b) {
  *        móvel é arrastado pela parede, como a água junto ao casco.
  *   4) Colisão bola-bola (esferas iguais): separa a sobreposição meio a
  *      meio e troca a componente normal da velocidade relativa.
+ *   5) (v3.0.0) Esferas fixas no tambor: posição girada por θ em torno de x
+ *        y' = y·cosθ − z·sinθ ;  z' = y·sinθ + z·cosθ
+ *      velocidade do pino = ω × r ; colisão bola-pino com a MESMA lei da
+ *      parede (o pino tem massa "infinita": só a bola muda de velocidade).
+ *   6) (v3.0.0) Condução até a comporta enquanto a gaiola freia: mola-
+ *      amortecedor crítico  a = k·(alvo − p) − c·v,  k = 80, c = 2√k ≈ 18
+ *      → assenta em ~4/√k ≈ 0,45 s, dentro da frenagem de 0,9 s.
  * ========================================================================= */
 const G = -9.0, ARRASTO = 0.35, REST = 0.55, ATRITO = 0.25, DT = 1 / 240;
 const tmp = new THREE.Vector3(), n = new THREE.Vector3(), vp = new THREE.Vector3();
 
+const K_GUIA = 80, C_GUIA = 2 * Math.sqrt(80), REST_PINO = 0.6;
+const alvoGuia = new THREE.Vector3();
+
 function passoFisica(dt) {
+  // Ângulo do tambor integrado no mesmo passo da física (pinos sem "saltos").
+  for (const g of gaiolas) {
+    g.ang += g.omega * dt;
+    const c = Math.cos(g.ang), s = Math.sin(g.ang);
+    g.pinosLocal.forEach((pl, k) => g.pinosMundo[k].set(pl.x, pl.y * c - pl.z * s, pl.y * s + pl.z * c));
+  }
   for (const b of bolas) {
     if (!b.livre) continue;
     const gai = gaiolas[b.gaiola];
+    if (b.guia) {                                       // condução à comporta
+      alvoGuia.set(CAGE_X[b.gaiola], CAGE_Y - (CAGE_R - BALL_R), 0);
+      b.v.addScaledVector(tmp.subVectors(alvoGuia, b.p), K_GUIA * dt).addScaledVector(b.v, -C_GUIA * dt);
+    }
     b.v.y += G * dt;
     b.v.multiplyScalar(1 - ARRASTO * dt);
     b.p.addScaledVector(b.v, dt);
@@ -380,6 +451,24 @@ function passoFisica(dt) {
       vp.subVectors(b.v, vp);                              // velocidade relativa
       vp.addScaledVector(n, -vp.dot(n));                   // só a tangencial
       b.v.addScaledVector(vp, -ATRITO);
+    }
+    // Colisão com as esferas fixas (pinos) do tambor
+    const minD = BALL_R + PINO_R;
+    for (const pm of gai.pinosMundo) {
+      tmp.set(b.p.x - CAGE_X[b.gaiola] - pm.x, b.p.y - CAGE_Y - pm.y, b.p.z - pm.z);
+      const d = tmp.length();
+      if (d > 0 && d < minD) {
+        n.copy(tmp).divideScalar(d);
+        b.p.addScaledVector(n, minD - d);
+        vp.set(0, -gai.omega * pm.z, gai.omega * pm.y);  // velocidade do pino (ω × r)
+        const rel = b.v.clone().sub(vp), vn = rel.dot(n);
+        if (vn < 0) {
+          b.v.addScaledVector(n, -(1 + REST_PINO) * vn);
+          if (Math.abs(gai.omega) > 1 && vn < -1.2) somClique();
+        }
+        rel.copy(b.v).sub(vp); rel.addScaledVector(n, -rel.dot(n));   // tangencial
+        b.v.addScaledVector(rel, -ATRITO);
+      }
     }
   }
   // Colisões bola-bola (no máximo 10 bolas por gaiola → 45 pares; barato)
@@ -422,7 +511,8 @@ function passoFisica(dt) {
  *   mesmo lugar, só mudamos a linha d'água de referência (centro óptico).
  * ========================================================================= */
 const MEIA_LARG = CAGE_X[2] + CAGE_R + 0.75;   // inclui manivela e colunas
-const Y_BAIXO = PISO_Y - 0.25, Y_ALTO = CAGE_Y + CAGE_R + 1.35;
+// v3.0.0: a bola não sobe mais acima da gaiola (vai ao copo) → topo mais baixo.
+const Y_BAIXO = PISO_Y - 0.25, Y_ALTO = CAGE_Y + CAGE_R + 0.5;
 const FAIXA_Y = Y_ALTO + 0.9;                  // faixa logo acima, ao fundo
 const MEIA_ALT = (Y_ALTO - Y_BAIXO) / 2, CENTRO_Y = (Y_ALTO + Y_BAIXO) / 2;
 
@@ -506,14 +596,13 @@ function iniciar3D() {
   // O painel muda de altura quando o resultado aparece: recentraliza a cena.
   if (window.ResizeObserver) new ResizeObserver(() => enquadrar()).observe(document.querySelector('.painel'));
 
-  let acum = 0, ultimo = performance.now();
+  let acum = 0, ultimo = performance.now(), acumTubo = 0, ultimoTubo = 0;
   renderer.setAnimationLoop((agora) => {
     const dtReal = Math.min(0.05, (agora - ultimo) / 1000); ultimo = agora;
     // Velocidade angular segue o alvo com resposta de 1ª ordem:
     //   ω ← ω + (ω_alvo − ω)·(1 − e^(−dt/τ)),  τ ≈ 0,4 s (inércia do tambor)
     for (const g of gaiolas) {
       g.omega += (g.alvo - g.omega) * (1 - Math.exp(-dtReal / 0.4));
-      g.giro.rotation.x += g.omega * dtReal;
       // Entorno: foco suave (mesma resposta de 1ª ordem, τ = 0,25 s)
       g.foco += (g.focoAlvo - g.foco) * (1 - Math.exp(-dtReal / 0.25));
       const pulso = 0.5 + 0.5 * Math.sin(agora / 180);
@@ -527,6 +616,19 @@ function iniciar3D() {
     }
     acum += dtReal;
     while (acum >= DT) { passoFisica(DT); acum -= DT; }
+    // Tubo em TEMPO REAL (sem o limite de 0,05 s): mesmo num aparelho lento a
+    // bola chega ao copo no horário — t ≈ 0,8 s na geometria atual.
+    acumTubo += Math.min(0.25, (agora - (ultimoTubo || agora)) / 1000); ultimoTubo = agora;
+    while (acumTubo >= DT) { passoTubo(DT); acumTubo -= DT; }
+    for (const g of gaiolas) g.giro.rotation.x = g.ang;
+    for (const [b, e] of tubo) {                     // bolas no tubo / no copo
+      b.mesh.position.copy(e.pos);
+      if (e.chegou) {
+        e.tc = Math.min(1, e.tc + dtReal / 0.35);
+        b.mesh.quaternion.slerp(Q0, e.tc * 0.25);    // assenta com o número para a câmera
+        b.mesh.scale.setScalar(1 + 0.6 * e.tc);      // lupa de vidro sobre o copo
+      }
+    }
     for (const b of bolas) {
       if (!b.livre) continue;
       b.mesh.position.copy(b.p);
@@ -538,27 +640,85 @@ function iniciar3D() {
   });
 }
 
-// Anima a bola sorteada saindo da gaiola até ficar acima dela, de frente.
+/* ===========================================================================
+ * EXTRAÇÃO FÍSICA PELO TUBO (v3.0.0)
+ *   conduzir(i, d)  : durante a frenagem, a bola d é levada à comporta.
+ *   extrairBola(...) : a comporta abre; a bola entra no tubo e ROLA até o copo.
+ *
+ *   Movimento no tubo (1D, ao longo do comprimento s da curva):
+ *     esfera maciça rolando sem deslizar → I = (2/5)·m·r²
+ *     a_s = g·sen θ · m/(m + I/r²) = (5/7)·g·sen θ        (sen θ = −dy/ds)
+ *     − resistência ao rolamento: a −= C_ROL·v
+ *   C_ROL = 0,25 s⁻¹ ; comporta abre 1,0 s antes da revelação ; trajeto
+ *   L ≈ 1,67 → t ≈ 0,8 s (simulado), chegando ~0,2 s antes do placar.
+ *   Ex.: rampa de 10° → a = (5/7)·9·0,17 ≈ 1,1 m/s². A queda inicial da
+ *   comporta (≈ 0,35) dá v ≈ √(2·(5/7)·9·0,35) ≈ 2,1 m/s de entrada.
+ *   Analogia: é a água descendo pela calha de um convés inclinado — a
+ *   inclinação dá a aceleração, o atrito tira um pouco de energia.
+ *   O número sorteado vem do servidor (sorteio criptográfico); a física
+ *   decide a mistura e o trajeto, não o resultado.
+ * ========================================================================= */
+const tubo = new Map();                 // bola → estado no tubo
+const C_ROL = 0.25, Q0 = new THREE.Quaternion(), EIXO = new THREE.Vector3(), TAN = new THREE.Vector3(), CIMA = new THREE.Vector3(0, 1, 0), QD = new THREE.Quaternion();
+
+function conduzir(gaiolaIdx, digito) {
+  const b = bolas.find((x) => x.gaiola === gaiolaIdx && x.digito === digito);
+  if (b && b.livre) b.guia = true;
+}
+
+function passoTubo(dt) {
+  for (const [b, e] of tubo) {
+    if (e.chegou) continue;
+    const g = gaiolas[b.gaiola], u = Math.min(1, e.s / g.comprimento);
+    g.caminho.getTangentAt(u, TAN);
+    e.v += ((5 / 7) * -G * -TAN.y - C_ROL * e.v) * dt;   // −TAN.y = sen θ (descida)
+    e.v = Math.max(e.v, 0.15);                          // não volta para dentro da gaiola
+    e.s += e.v * dt;
+    if (e.s >= g.comprimento) { e.s = g.comprimento; e.chegou = true; e.tc = 0; e.resolver(); }
+    g.caminho.getPointAt(Math.min(1, e.s / g.comprimento), e.pos).add(g.grupo.position);
+    // rolagem: eixo = tangente × vertical ; ângulo = ds / r
+    EIXO.crossVectors(TAN, CIMA).normalize();
+    if (EIXO.lengthSq() > 0) b.mesh.quaternion.premultiply(QD.setFromAxisAngle(EIXO, -(e.v * dt) / BALL_R));
+  }
+}
+
 function extrairBola(gaiolaIdx, digito, duracaoMs = 900 * T) {
   return new Promise((resolve) => {
     if (!webglOk) return resolve();
     const b = bolas.find((x) => x.gaiola === gaiolaIdx && x.digito === digito);
     if (!b) return resolve();                          // defensivo: dígito sem bola
-    b.livre = false;
-    const ini = b.mesh.position.clone();
-    const fim = new THREE.Vector3(CAGE_X[gaiolaIdx], CAGE_Y + CAGE_R + 0.75, 0.6);
-    const qIni = b.mesh.quaternion.clone(), qFim = new THREE.Quaternion();
-    const dur = duracaoMs, t0 = performance.now();
-    (function quadro(agora) {
-      const k = Math.min(1, (agora - t0) / dur);
-      const e = 1 - Math.pow(1 - k, 3);                    // easeOutCubic
-      b.mesh.position.lerpVectors(ini, fim, e);
-      b.mesh.position.y += Math.sin(Math.PI * k) * 0.6;    // arco de subida
-      b.mesh.quaternion.copy(qIni).slerp(qFim, e);         // dígito vira para a câmera
-      b.mesh.scale.setScalar(1 + 1.4 * e);
-      if (k < 1) requestAnimationFrame(quadro); else resolve();
-    })(performance.now());
+    const g = gaiolas[gaiolaIdx];
+    b.livre = false; b.guia = false;
+    // A comporta segura a bola (v = 0) e abre: parte só com a queda inicial.
+    b.v.set(0, 0, 0);
+    const e = { s: 0, v: 0.8, pos: new THREE.Vector3(), chegou: false, tc: 0, resolver: resolve };
+    if (duracaoMs <= 50) {                             // visitante atrasado: já está no copo
+      e.s = g.comprimento; e.chegou = true; e.tc = 1;
+      g.caminho.getPointAt(1, e.pos).add(g.grupo.position);
+      b.mesh.quaternion.identity(); b.mesh.scale.setScalar(1.6);
+      tubo.set(b, e); return resolve();
+    }
+    // entra pela comporta a partir de onde a condução deixou a bola
+    g.caminho.getPointAt(0, e.pos).add(g.grupo.position);
+    tubo.set(b, e);
   });
+}
+
+// Devolve a bola (auditoria) por cima da gaiola: sai do copo, sobe em arco e
+// é solta no topo interno — a partir daí volta a obedecer à física.
+function devolverBola(b) {
+  if (!b) return;
+  const e = tubo.get(b); tubo.delete(b);
+  const ini = (e ? e.pos : b.mesh.position).clone();
+  const fim = new THREE.Vector3(CAGE_X[b.gaiola], CAGE_Y + CAGE_R - BALL_R - 0.1, 0);
+  const t0 = performance.now(), dur = 600 * T;
+  b.mesh.scale.setScalar(1);
+  (function quadro(agora) {
+    const k = Math.min(1, (agora - t0) / dur);
+    b.mesh.position.lerpVectors(ini, fim, k); b.mesh.position.y += Math.sin(Math.PI * k) * 0.8;
+    if (k < 1) return requestAnimationFrame(quadro);
+    b.p.copy(fim); b.v.set(0, -1, 0); b.livre = true; b.guia = false;   // cai pela gravidade
+  })(t0);
 }
 
 /* ===========================================================================
@@ -766,22 +926,23 @@ async function animarGaiola(i, g, Ti, ciclo) {
   for (let a = 0; a < g.auditorias; a++) {
     const Ca = S + a * C;
     if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
+    conduzir(i, AUDITORIA);
     await ate(Ca + 900);
     extrairBola(i, AUDITORIA);
     falar('voz-auditoria');
     await ate(Ca + 1800);
     mostrarAuditoria(i, true);
     await ate(Ca + 2800);
-    const bA = bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA);
-    if (bA) reposicionar(bA);
+    devolverBola(bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA));
     mostrarAuditoria(i, false);
     $('status').textContent = `Girando a ${ROTULOS[i].toLowerCase()} novamente…`;
     if (gaiolas[i]) { gaiolas[i].podioAlvo = 0; gaiolas[i].alvo = 7; }
     await ate(Ca + C);
   }
   if (gaiolas[i]) { gaiolas[i].alvo = 0; gaiolas[i].podioAlvo = 0.9; }
+  conduzir(i, g.digito);
   falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);
-  await ate(Ti - 900);
+  await ate(Ti - 1000);                               // comporta abre; ~0,8 s de tubo
   extrairBola(i, g.digito, Math.max(100, Ti - agoraSync()));
   await ate(Ti);
   mostrarDigito(i, g.digito, true);
@@ -886,20 +1047,25 @@ async function sortearTeste() {
   for (let i = 0; i < 3; i++) {
     $('status').textContent = `TESTE — sorteando a ${ROTULOS[i].toLowerCase()}…`;
     focarGaiola(i); gaiolas[i].alvo = 0;
+    const kAud = i === 0 ? 2 : 10, vaiAud = auditorias[i] < 6 && sortearNumero(kAud + 1) === kAud + 1;
+    conduzir(i, vaiAud ? AUDITORIA : digs[i]);
     await espera(900);
     gaiolas[i].podioAlvo = 0.9;
     const k = i === 0 ? 2 : 10;
-    while (auditorias[i] < 6 && sortearNumero(k + 1) === k + 1) {   // ver regra em sorteio-core.js
+    let proxAud = vaiAud;
+    while (proxAud) {   // ver regra em sorteio-core.js
       auditorias[i]++;
       falar('voz-auditoria');
       await extrairBola(i, AUDITORIA);
       mostrarAuditoria(i, true);
       await espera(1300);
-      const bA = bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA);
-      if (bA) reposicionar(bA);
+      devolverBola(bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA));
       gaiolas[i].podioAlvo = 0; mostrarAuditoria(i, false);
       gaiolas[i].alvo = 7; await espera(1500);
-      gaiolas[i].alvo = 0; await espera(900);
+      gaiolas[i].alvo = 0;
+      proxAud = auditorias[i] < 6 && sortearNumero(k + 1) === k + 1;
+      conduzir(i, proxAud ? AUDITORIA : digs[i]);
+      await espera(900);
       gaiolas[i].podioAlvo = 0.9;
     }
     falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);

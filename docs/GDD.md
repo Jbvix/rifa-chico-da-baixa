@@ -33,6 +33,16 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 - Inércia do tambor: `ω ← ω + (ω_alvo − ω)(1 − e^(−dt/τ))`, τ = 0,4 s.
 - Passo fixo 1/240 s.
 
+### 4.1.1 Mistura e tubo de saída (v3.0.0)
+- 6 esferas fixas (r = 0,13) presas ao tambor, em anel de raio 0,62·R, alternando ±0,38·R em x;
+  colisão bola-pino com a lei da parede (reflexão e = 0,6 + arraste ω × r). Ângulo do tambor
+  integrado no passo físico (1/240 s).
+- Frenagem: a bola sorteada é conduzida à comporta (mola-amortecedor crítico k = 80, c = 2√k).
+- Comporta abre 1,0 s antes da revelação; no tubo a bola rola: a = (5/7)·g·sen θ − 0,25·v;
+  L ≈ 1,67 → t ≈ 0,75 s. Copo com lupa (ampliação 1,6×) na frente da base.
+- Auditoria: volta por cima da gaiola e cai pela gravidade.
+- O número continua vindo do servidor; a física decide mistura e trajeto.
+
 ### 4.2 Sorteio
 `crypto.getRandomValues` + rejeição de `x ≥ ⌊2³²/N⌋·N` → uniforme exato em 1..N.
 A bola extraída corresponde ao dígito sorteado.
