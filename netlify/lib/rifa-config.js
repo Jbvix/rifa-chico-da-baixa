@@ -2,12 +2,15 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : netlify/lib/rifa-config.js
  * Autor    : Jossian Brito
- * Versão   : 2.0.0
- * Data/Hora: 2026-11-16 09:48 (BRT, UTC-3)
+ * Versão   : 2.5.0
+ * Data/Hora: 2026-11-16 13:00 (BRT, UTC-3)
  *
  * PROPÓSITO
  *   "Carta náutica" única da rifa: todas as constantes que o backend usa
  *   ficam aqui, para que numeros.js e stats.js naveguem pelo mesmo rumo.
+ *
+ * MODIFICAÇÕES v2.5.0 (2026-11-16)
+ *   - [NOVO] tokenValido() movido para cá (usado por numeros.js e sorteio.js).
  *
  * MODIFICAÇÕES v2.0.0 (2026-11-16)
  *   - [NOVO] Total oficial corrigido para 199 números (001–199). A versão 1.x
@@ -15,6 +18,8 @@
  *   - [NOVO] Funções utilitárias de validação (número, nome, telefone).
  *   - [NOVO] Helper de escrita atômica (Compare-And-Swap) por ETag.
  * ========================================================================== */
+
+import { timingSafeEqual } from "node:crypto";
 
 // Quantidade de bilhetes à venda. Faixa válida: 1 ≤ n ≤ TOTAL_NUMEROS.
 export const TOTAL_NUMEROS = 199;
@@ -46,6 +51,15 @@ export function validarNome(valor) {
 export function validarTelefone(valor) {
   const tel = String(valor || "").replace(/\D/g, "");
   return tel.length >= 10 && tel.length <= 13 ? tel : null;
+}
+
+// Compara o header x-admin-token com env RIFA_ADMIN_TOKEN em tempo constante
+// (timingSafeEqual evita descobrir o token medindo o tempo de resposta).
+export function tokenValido(req) {
+  const esperado = process.env.RIFA_ADMIN_TOKEN || "";
+  const recebido = req.headers.get("x-admin-token") || "";
+  if (!esperado || esperado.length !== recebido.length) return false;
+  return timingSafeEqual(Buffer.from(esperado), Buffer.from(recebido));
 }
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));

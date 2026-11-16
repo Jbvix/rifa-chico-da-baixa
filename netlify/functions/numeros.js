@@ -2,8 +2,8 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : netlify/functions/numeros.js  (API da cartela)
  * Autor    : Jossian Brito
- * Versão   : 2.0.0
- * Data/Hora: 2026-11-16 09:48 (BRT, UTC-3)
+ * Versão   : 2.5.0
+ * Data/Hora: 2026-11-16 13:00 (BRT, UTC-3)
  *
  * ENDPOINTS
  *   GET  /.netlify/functions/numeros
@@ -13,6 +13,12 @@
  *        → 200 { ok, number, name } | 400 dados inválidos | 409 já escolhido
  *   POST { action:"clear" } + header x-admin-token = env RIFA_ADMIN_TOKEN
  *        → libera todos os números (desabilitado se a variável não existir).
+ *
+ * MODIFICAÇÕES v2.5.0 (2026-11-16)
+ *   - [REGRA] Vendas encerradas no início do sorteio (23/12/2026 09:55 BRT):
+ *     POST de compra devolve 423. Sem isso, alguém poderia comprar depois
+ *     de ver a centena revelada às 09:59:40.
+ *   - [NOVO] GET informa `vendasEncerradas`.
  *
  * MODIFICAÇÕES v2.0.0 (2026-11-16)
  *   - [CRÍTICO] "clear" era público: qualquer pessoa apagava a rifa com um
@@ -31,22 +37,15 @@
  *     momento da reserva; antes o cliente podia forjá-lo.
  * ========================================================================== */
 import { getStore } from "@netlify/blobs";
-import { timingSafeEqual } from "node:crypto";
 import {
   TOTAL_NUMEROS, primeiroNome, validarNumero, validarNome, validarTelefone,
-  atualizarJSON, json, lerCorpo,
+  atualizarJSON, json, lerCorpo, tokenValido,
 } from "../lib/rifa-config.js";
+import { agenda } from "../lib/sorteio-core.js";
 
 // Mesma store e mesma chave da v1.x → os registros existentes são mantidos.
 const STORE_NUMEROS = "rifa-numeros";
 const CHAVE_VENDIDOS = "sold";
-
-function tokenValido(req) {
-  const esperado = process.env.RIFA_ADMIN_TOKEN || "";
-  const recebido = req.headers.get("x-admin-token") || "";
-  if (!esperado || esperado.length !== recebido.length) return false;
-  return timingSafeEqual(Buffer.from(esperado), Buffer.from(recebido));
-}
 
 export default async (req) => {
   const store = getStore({ name: STORE_NUMEROS, consistency: "strong" });
@@ -59,7 +58,8 @@ export default async (req) => {
       publico[num] = { name: primeiroNome(reg?.name), date: reg?.date || null };
       if (!validarNumero(num)) foraDaFaixa.push(Number(num) || num);
     }
-    return json({ total: TOTAL_NUMEROS, sold: publico, foraDaFaixa });
+    return json({ total: TOTAL_NUMEROS, sold: publico, foraDaFaixa,
+                  vendasEncerradas: Date.now() >= agenda().inicio });
   }
 
   if (req.method !== "POST") return json({ error: "Método não permitido" }, 405);
@@ -71,6 +71,11 @@ export default async (req) => {
     if (!tokenValido(req)) return json({ error: "Não autorizado" }, 403);
     await store.setJSON(CHAVE_VENDIDOS, {});
     return json({ ok: true, message: "Todos os números liberados" });
+  }
+
+  // Vendas fecham quando as gaiolas começam a girar (fonte de verdade: servidor).
+  if (Date.now() >= agenda().inicio) {
+    return json({ error: "Vendas encerradas: o sorteio já começou." }, 423);
   }
 
   const number = validarNumero(body.number);

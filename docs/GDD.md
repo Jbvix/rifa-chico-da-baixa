@@ -1,8 +1,8 @@
 # GDD — Rifa Solidária Chico da Baixa (Game/Design Document)
 
 - **Autor:** Jossian Brito
-- **Versão do documento:** 2.4.0
-- **Data/Hora:** 2026-11-16 12:10 (BRT, UTC-3)
+- **Versão do documento:** 2.5.0
+- **Data/Hora:** 2026-11-16 13:00 (BRT, UTC-3)
 
 ## 1. Visão
 Rifa beneficente online, transparente e sem atrito no celular: o comprador escolhe um
@@ -13,7 +13,8 @@ número, paga via Pix e vê a cartela atualizar em tempo real para todos.
 |------|-------|
 | Números | **199** (001 a 199) — corrigido na v2.0.0 (antes: 200 e "000 a 200") |
 | Preço | R$ 20,00 por número (Pix Copia e Cola) |
-| Sorteio | Após a venda do último número; forma a ser divulgada pela responsável |
+| Sorteio | **Oficial pelas gaiolas**: 23/12/2026, resultado às 10:00 (Brasília) |
+| Encerramento das compras | 23/12/2026 09:55:00 (servidor recusa com HTTP 423) |
 | Loteria Federal | **Oculta** (v2.0.0), conteúdo preservado para reativação |
 
 ## 3. Telas
@@ -47,6 +48,21 @@ A bola extraída corresponde ao dígito sorteado.
 - O total de auditorias aparece sob o resultado e no histórico (modo teste).
 - Vermelho é exclusivo da auditoria; por isso a Centena passou a ser azul.
 
+### 4.2.2 Sorteio oficial agendado (v2.5.0)
+| Instante | Evento |
+|---|---|
+| T3 − 300 s (09:55:00) | gaiolas giram; compras encerradas |
+| T1 − 10 s (09:59:30) | servidor gera número + auditorias (uma vez, onlyIfNew) |
+| T1 (09:59:40) | centena revelada |
+| T2 (09:59:50) | dezena revelada |
+| T3 (10:00:00) | unidade revelada; apuração; nome + tel. final; e-mail |
+
+- Liberação da gaiola i: `S_i = T_i − (1,8 s + 4,0 s·a_i)`, a_i ≤ 2 → S_i > T_(i−1).
+- Ciclo de auditoria (4,0 s): frear 0,9 → extrair 0,9 → exibir 1,0 → girar 1,2.
+- Relógio do cliente: `offset = agoraServidor − (t_envio + t_retorno)/2` (menor RTT).
+- E-mail idempotente: reserva por CAS (`enviando` → `enviado`); nova tentativa após 2 min em caso de erro.
+- Ensaio `?ensaio=1` e teste manual `?teste=1` (não oficiais).
+
 ### 4.3 Entorno (v2.1.0)
 - Mesa com feltro verde, borda e saia de madeira; névoa linear (14–30).
 - Painel de fundo curvo com a faixa "RIFA SOLIDÁRIA • CHICO DA BAIXA".
@@ -77,6 +93,7 @@ A bola extraída corresponde ao dígito sorteado.
 
 ## 6. Propostas pendentes de aprovação
 - **P1** Fluxo "reservado → confirmado" pela organização (hoje "Já paguei" marca vendido sem conferência).
-- **P2** Definir a forma oficial do sorteio (gaiola, Loteria Federal ou outra).
+- ~~P2 Definir a forma oficial do sorteio~~ → gaiolas, 23/12/2026 (v2.5.0).
+- **P5** Regra para número sorteado não comprado (hoje: "sem ganhador nesta extração").
 - **P3** Adicionar `poster.jpg` ao repositório (está referenciado mas ausente) e conferir se a arte diz 199.
 - **P4** Mover o site estático para `public/` (hoje o código das functions também é servido).

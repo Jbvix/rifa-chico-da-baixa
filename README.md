@@ -50,9 +50,12 @@ Sistema completo de rifa online com:
 │   └── MANUAL_DO_USUARIO.md
 └── netlify/
     ├── lib/rifa-config.js  # Constantes, validações e escrita atômica (CAS)
+    ├── lib/sorteio-core.js # Agenda, geração, liberação, apuração e e-mail
     └── functions/
-        ├── numeros.js      # API de números vendidos (Netlify Blobs)
-        └── stats.js        # API de visitas, online e último pagamento
+        ├── numeros.js      # API de números comprados (Netlify Blobs)
+        ├── stats.js        # API de visitas, online e último pagamento
+        ├── sorteio.js      # API pública do sorteio oficial
+        └── sorteio-agendado.js # Função agendada 23/12 10:00–10:10 (e-mail)
 ```
 
 ## Tecnologias
@@ -71,14 +74,37 @@ Pix: +5588993843874 (Nubank - Maria Lúcia Leitão do Nascimento)
 
 O valor do Pix é creditado **diretamente** na conta da Sra. Maria Lúcia.
 
-## Sorteio
+## Sorteio oficial (gaiolas)
 
-A regra pela **Loteria Federal está oculta** desde a v2.0.0 (conteúdo preservado com
-atributo `hidden` em `index.html` e `regras.html`). A data e a forma do sorteio serão
-divulgadas pela responsável.
+**23/12/2026 — horário de Brasília**
 
-A gaiola virtual (`sorteio.html`) sorteia 001–199 com `crypto.getRandomValues`
-(distribuição uniforme exata) e mostra se o número foi vendido.
+| Hora | Evento |
+|------|--------|
+| 09:55:00 | Gaiolas começam a girar · **compras encerradas** |
+| 09:59:40 | 1ª gaiola — centena (azul: 0, 1 + A) |
+| 09:59:50 | 2ª gaiola — dezena (verde: 0–9 + A) |
+| 10:00:00 | 3ª gaiola — unidade (amarela: 0–9 + A) → resultado |
+
+- O número é gerado **uma vez no servidor** (crypto, uniforme em 001–199) às 09:59:30, já com as vendas fechadas.
+- Cada gaiola é liberada pelo servidor só no instante da sua animação; a página sincroniza o relógio com o servidor.
+- Ganhador: **nome + 4 últimos dígitos do telefone** na tela; e-mail de confirmação para `jannatulipa@hotmail.com`
+  (com telefone completo), enviado uma única vez pela função agendada `sorteio-agendado` (10:00–10:10) e, como reserva, pela API.
+- "A" = bola vermelha de **auditoria** (até 2 por gaiola no oficial): exibida, devolvida e a gaiola gira de novo.
+- A Loteria Federal permanece **oculta**.
+- Ensaio: `/sorteio.html?ensaio=1` (roteiro completo começando em 5 s, resultado local, não oficial).
+  Teste manual: `/sorteio.html?teste=1`.
+
+### Configuração do e-mail (Netlify → Site configuration → Environment variables)
+
+| Variável | Valor |
+|----------|-------|
+| `RESEND_API_KEY` **ou** `SENDGRID_API_KEY` | chave do provedor |
+| `EMAIL_REMETENTE` | remetente verificado no provedor, ex.: `Rifa <rifa@seudominio.com.br>` |
+| `EMAIL_RESULTADO` | opcional (padrão `jannatulipa@hotmail.com`) |
+| `RIFA_ADMIN_TOKEN` | senha para testes administrativos |
+| `SORTEIO_T3` | opcional, só para ensaio em deploy de teste (ISO 8601) |
+
+Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-email"}` e header `x-admin-token`.
 
 ## Administração
 
@@ -89,6 +115,7 @@ A gaiola virtual (`sorteio.html`) sorteia 001–199 com `crypto.getRandomValues`
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 2.5.0 | 2026-11-16 | Sorteio OFICIAL pelas gaiolas em 23/12/2026 10h (servidor, sincronizado), ganhador com tel. final, e-mail automático, vendas encerram 9h55, "Comprados" |
 | 2.4.0 | 2026-11-16 | Bola vermelha de AUDITORIA em cada gaiola (devolvida e novo giro); Centena azul |
 | 2.3.0 | 2026-11-16 | Aros cruzados a ±45° nas gaiolas (antes o aro central aparecia de perfil) |
 | 2.2.0 | 2026-11-16 | Gaiola centralizada na área livre (desktop/celular), faixa corrigida, elementos de teste ocultos (`?teste=1`) |
