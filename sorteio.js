@@ -2,8 +2,14 @@
  * Rifa Solidária – Sr. Francisco Felício (Chico da Baixa)
  * Arquivo  : sorteio.js (lógica da gaiola, extraída de sorteio.html)
  * Autor    : Jossian Brito
- * Versão   : 3.3.0
+ * Versão   : 3.4.0
  * Data/Hora: 2026-11-16 11:10 (BRT, UTC-3)
+ * MODIFICAÇÕES v3.4.0 (2026-11-16 15:10 BRT): TEMPOS 30 s / 40 s / 50 s
+ *   - Demonstração e teste: centena cai aos 30 s, dezena aos 40 s e unidade
+ *     aos 50 s após o início do giro — mesmo motor cronometrado do oficial
+ *     (animarGaiola), com auditorias (máx. 2) encaixadas antes de cada queda.
+ *   - Contagem regressiva no painel durante a demonstração.
+ *   - Sorteio oficial inalterado (09:59:40 / 09:59:50 / 10:00:00).
  * MODIFICAÇÕES v3.3.0 (2026-11-16 14:50 BRT): SOM DAS BOLAS BATENDO
  *   - Novo estalo de bola plástica (ruído curto + filtro passa-faixa) em TODOS
  *     os choques: bola-bola, bola-parede e bola-pino; também com a gaiola
@@ -980,9 +986,11 @@ const buscar = () => (MODO_ENSAIO ? buscarEnsaio() : buscarOficial());
  * ========================================================================= */
 const gaiolaFeita = [false, false, false];
 
-async function animarGaiola(i, g, Ti, ciclo) {
-  if (gaiolaFeita[i]) return;
-  gaiolaFeita[i] = true;
+async function animarGaiola(i, g, Ti, ciclo, local = false) {
+  if (!local) {                                      // oficial: cada gaiola uma única vez
+    if (gaiolaFeita[i]) return;
+    gaiolaFeita[i] = true;
+  }
   const C = ciclo.auditoriaMs, X = ciclo.extracaoMs;
   const S = Ti - (X + C * g.auditorias);
 
@@ -1041,6 +1049,11 @@ function fmtFalta(ms) {
 let dados = null, girando = false, finalMostrado = false;
 
 function atualizarRelogio() {
+  if (demoAgenda) {                                  // contagem da demonstração/teste
+    const agora = agoraSync(), k = demoAgenda.t.findIndex((t) => agora < t);
+    $('relogio').textContent = k < 0 ? '' : `${demoAgenda.rot}: ${ROTULOS[k]} em ${fmtFalta(demoAgenda.t[k] - agora)}`;
+    return;
+  }
   if (!dados) return;
   const ag = dados.agenda, agora = agoraSync();
   const prox = [[ag.inicio, 'Gaiolas começam a girar em'], [ag.t[0], 'Centena em'], [ag.t[1], 'Dezena em'], [ag.t[2], 'Resultado em']]
@@ -1116,41 +1129,22 @@ async function sortearTeste(demo = false) {
   const cartelaP = demo ? Promise.resolve(null) : consultarCartela();
   const numero = sortearNumero(TOTAL);
   const digs = pad(numero).split('').map(Number);
+  // v3.4.0: agenda local — quedas aos 30 s, 40 s e 50 s após o início do giro.
+  //   T_i = t0 + {30, 40, 50} s ; auditorias como no oficial (máx. 2 por gaiola,
+  //   P = 1/(k+1)), cada uma consumindo 4,0 s ANTES da queda daquela gaiola.
+  const auditorias = [2, 10, 10].map((k) => { let a = 0; while (a < 2 && sortearNumero(k + 1) === k + 1) a++; return a; });
+  const t0 = agoraSync();
+  const Ts = DEMO_QUEDAS_S.map((x) => t0 + x * 1000);
+  demoAgenda = { t: Ts, rot: ROT };
+  $('relogioBox').hidden = false;
   $('status').textContent = `${ROT} — girando as gaiolas…`;
   querTrilha(true);
   if (!demo) falar('voz-abertura');                   // "sorteio oficial" só no teste
   gaiolas.forEach((g, i) => (g.alvo = 7 + i * 0.6));
-  await espera(2400);
-  const auditorias = [0, 0, 0];
-  for (let i = 0; i < 3; i++) {
-    $('status').textContent = `${ROT} — sorteando a ${ROTULOS[i].toLowerCase()}…`;
-    focarGaiola(i); gaiolas[i].alvo = 0;
-    const kAud = i === 0 ? 2 : 10, vaiAud = auditorias[i] < 6 && sortearNumero(kAud + 1) === kAud + 1;
-    conduzir(i, vaiAud ? AUDITORIA : digs[i]);
-    await espera(900);
-    gaiolas[i].podioAlvo = 0.9;
-    const k = i === 0 ? 2 : 10;
-    let proxAud = vaiAud;
-    while (proxAud) {   // ver regra em sorteio-core.js
-      auditorias[i]++;
-      falar('voz-auditoria');
-      await extrairBola(i, AUDITORIA);
-      mostrarAuditoria(i, true);
-      await espera(1300);
-      devolverBola(bolas.find((x) => x.gaiola === i && x.digito === AUDITORIA));
-      gaiolas[i].podioAlvo = 0; mostrarAuditoria(i, false);
-      gaiolas[i].alvo = 7; await espera(1500);
-      gaiolas[i].alvo = 0;
-      proxAud = auditorias[i] < 6 && sortearNumero(k + 1) === k + 1;
-      conduzir(i, proxAud ? AUDITORIA : digs[i]);
-      await espera(900);
-      gaiolas[i].podioAlvo = 0.9;
-    }
-    falar(['voz-centena', 'voz-dezena', 'voz-unidade'][i]);
-    await extrairBola(i, digs[i]);
-    mostrarDigito(i, digs[i]);
-    await espera(450);
-  }
+  const ciclo = { auditoriaMs: 4000, extracaoMs: 1800 };
+  await Promise.all([0, 1, 2].map((i) => animarGaiola(i, { digito: digs[i], auditorias: auditorias[i] }, Ts[i], ciclo, true)));
+  demoAgenda = null;
+  $('relogio').textContent = '';
   gaiolas.forEach((g) => (g.alvo = 0)); focarGaiola(null);
   const vend = await cartelaP;
   const ganhador = vend === null ? undefined : (vend[numero] ? { nome: vend[numero].name } : null);
@@ -1184,6 +1178,8 @@ async function sortearTeste(demo = false) {
 }
 
 /* ---------- Demonstração: só antes do sorteio oficial (até inicio − 2 min) ---------- */
+const DEMO_QUEDAS_S = [30, 40, 50];                 // centena, dezena, unidade (s após o giro)
+let demoAgenda = null;
 function demoPermitida() {
   if (MODO_TESTE && !MODO_ENSAIO) return true;
   return !!dados && dados.fase === 'aguardando' && dados.agenda.inicio - agoraSync() > 120000;
@@ -1226,6 +1222,7 @@ iniciar3D();
 if (MODO_TESTE && !MODO_ENSAIO) {
   $('status').textContent = 'MODO TESTE — sorteio manual, não oficial';
   consultarCartela(); querTrilha(true);
+  setInterval(atualizarRelogio, 250);
 } else {
   consultarCartela();
   cicloOficial();

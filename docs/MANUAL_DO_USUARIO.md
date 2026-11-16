@@ -27,7 +27,7 @@ Os contadores no topo mostram em tempo real: disponíveis, comprados, pessoas on
 ## Gaiola de sorteio (`/sorteio.html`)
 - **Música:** toque em "🔊 Toque para ativar voz e música" — a trilha gospel toca até o sorteio.
 - **Demonstração:** toque em "▶️ Ver demonstração das gaiolas" para ver o giro, a mistura, a bola de
-  auditoria e a passagem pelo tubo. O número da demonstração **não vale**. Disponível até 2 minutos
+  auditoria e a passagem pelo tubo. A centena cai aos **30 s**, a dezena aos **40 s** e a unidade aos **50 s**. O número da demonstração **não vale**. Disponível até 2 minutos
   antes do sorteio oficial.
 - No dia oficial tudo é automático (não há botão). Em `?teste=1`, **Sortear (teste)**: as três gaiolas giram; a gaiola em foco fica iluminada,
   freia e libera a bola da centena, depois dezena e unidade.
