@@ -145,6 +145,7 @@ Teste antes do dia: `POST /.netlify/functions/sorteio` com `{"action":"testar-em
 
 | Versão | Data | Resumo |
 |--------|------|--------|
+| 3.10.0 | 2026-11-17 | **Publicado.** Rodapé "Autor: JCBrito – Desenvolvimento de Software · Sistemas e Apps" em todas as páginas; aviso "Role para baixo" some ao chegar à cartela (antes cobria o rodapé) |
 | 3.9.0 | 2026-11-16 | **Publicado.** Link de administração `/confirmar.html` para conferir o Pix ("✅ Confirmar Pix recebido" / "↩️ Desfazer"); gravado em store separado `rifa-conferencia` — estado das reservas intocado |
 | 3.8.0 | 2026-11-16 | **Publicado.** Botões de compartilhar: "📤 Compartilhar a rifa" (topo), "📤 Convidar amigos" (após a compra) e 📤 na gaiola — folha nativa do celular, alternativa WhatsApp/copiar link |
 | 3.7.0 | 2026-11-16 | **Publicado.** Painel de vendas ao vivo (`/vendas.html`, somente leitura, link com chave; servidor guarda só o SHA-256), alertas com som/vibração/notificação |
@@ -177,7 +178,7 @@ O site está hospedado no Netlify. Para atualizar:
 
 ## Desenvolvimento
 
-Autor: **Jossian Brito**.
+Autor: **Jossian Brito** — JCBrito · Desenvolvimento de Software · Sistemas e Apps.
 
 ---
 

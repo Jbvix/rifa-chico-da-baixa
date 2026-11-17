@@ -19,6 +19,7 @@
  *      é feito no painel administrativo).
  *
  * MODIFICAÇÕES v3.8.0 (2026-11-16)
+ *   - v3.10.0: aviso "Role para baixo" some ao chegar à cartela ou após 10 s.
  *   - [NOVO] Compartilhar: Web Share API (folha nativa do celular); sem ela,
  *     mini-menu com WhatsApp e "Copiar link".
  * MODIFICAÇÕES v2.6.0 (2026-11-16)
@@ -142,3 +143,18 @@ async function compartilhar() {
 document.addEventListener('click', (e) => {
   if (e.target.closest('.js-compartilhar')) { e.preventDefault(); compartilhar(); }
 });
+
+/* ---------------- 5. Aviso "Role para baixo" (v3.10.0) ----------------
+ *   O aviso ficava fixo para sempre e cobria o rodapé e os últimos números.
+ *   Agora some quando a cartela aparece na tela ou após 10 s.            */
+(function esconderAvisoRolagem() {
+  const aviso = document.getElementById('scrollHint'), grade = document.getElementById('grid');
+  if (!aviso) return;
+  const sumir = () => { aviso.style.transition = 'opacity .4s'; aviso.style.opacity = '0'; setTimeout(() => (aviso.style.display = 'none'), 450); };
+  setTimeout(sumir, 10000);
+  if (grade && 'IntersectionObserver' in window) {
+    const obs = new IntersectionObserver((ent) => { if (ent.some((e) => e.isIntersecting)) { sumir(); obs.disconnect(); } }, { threshold: 0.05 });
+    obs.observe(grade);
+  }
+  aviso.addEventListener('click', () => setTimeout(sumir, 600));
+})();
